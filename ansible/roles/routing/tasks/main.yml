@@ -11,6 +11,11 @@
       - routing_table is defined
       - routing_table_id is defined
       - routing_mark is defined
+      - routing_ru_service_egress_enabled is defined
+      - routing_ru_service_egress_tcp_ports is defined
+      - routing_ru_service_egress_udp_ports is defined
+      - routing_ru_service_egress_excluded_ipv4_cidrs is defined
+      - routing_ru_service_egress_excluded_ipv4_addresses is defined
     fail_msg: "Missing routing variables"
 
 - name: Enable IPv4 forwarding on RU gateway

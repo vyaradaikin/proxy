@@ -1,0 +1,15 @@
+---
+dns_non_ru_forwarder_enabled: false
+dns_non_ru_bind_ip: "{{ wg_non_ru_ip }}"
+dns_non_ru_listen_port: 53
+dns_non_ru_config_path: /etc/dnsmasq.d/proxy-egress.conf
+dns_non_ru_filter_aaaa: true
+
+dns_ru_manage_resolv_conf: false
+dns_ru_resolv_conf_path: /etc/resolv.conf
+dns_ru_nameservers:
+  - "{{ wg_non_ru_ip }}"
+dns_ru_search_domains: []
+dns_ru_resolv_options:
+  - timeout:2
+  - attempts:3

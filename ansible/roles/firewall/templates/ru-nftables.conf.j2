@@ -3,6 +3,46 @@
 flush ruleset
 
 table inet filter {
+{% if routing_ru_service_egress_enabled | bool %}
+  set service_egress_excluded_ipv4_cidrs {
+    type ipv4_addr
+    flags interval
+    elements = {
+{% for cidr in routing_ru_service_egress_excluded_ipv4_cidrs %}
+      {{ cidr }}{% if not loop.last %},{% endif %}
+{% endfor %}
+    }
+  }
+
+{% set service_egress_excluded_ipv4_addresses = routing_ru_service_egress_excluded_ipv4_addresses | select | list %}
+{% if service_egress_excluded_ipv4_addresses | length > 0 %}
+  set service_egress_excluded_ipv4_addresses {
+    type ipv4_addr
+    elements = {
+{% for address in service_egress_excluded_ipv4_addresses %}
+      {{ address }}{% if not loop.last %},{% endif %}
+{% endfor %}
+    }
+  }
+{% endif %}
+
+  chain service_egress {
+    type route hook output priority mangle;
+    policy accept;
+
+    meta nfproto ipv4 ip daddr @service_egress_excluded_ipv4_cidrs return
+{% if service_egress_excluded_ipv4_addresses | length > 0 %}
+    meta nfproto ipv4 ip daddr @service_egress_excluded_ipv4_addresses return
+{% endif %}
+{% if routing_ru_service_egress_tcp_ports | length > 0 %}
+    meta nfproto ipv4 tcp dport { {{ routing_ru_service_egress_tcp_ports | join(', ') }} } meta mark set {{ routing_mark }}
+{% endif %}
+{% if routing_ru_service_egress_udp_ports | length > 0 %}
+    meta nfproto ipv4 udp dport { {{ routing_ru_service_egress_udp_ports | join(', ') }} } meta mark set {{ routing_mark }}
+{% endif %}
+  }
+{% endif %}
+
   chain input {
     type filter hook input priority filter;
     policy drop;
@@ -12,6 +52,9 @@ table inet filter {
     ip protocol icmp accept
     ip6 nexthdr icmpv6 accept
 
+{% if wg_speedtest_enabled | default(false) | bool %}
+    iifname "{{ wg_interface }}" ip saddr {{ wg_non_ru_ip }} tcp dport {{ wg_speedtest_port }} accept
+{% endif %}
 {% for port in firewall_ru_tcp_ports + firewall_ru_extra_tcp_ports %}
     tcp dport {{ port }} accept
 {% endfor %}
@@ -30,3 +73,14 @@ table inet filter {
     policy accept;
   }
 }
+
+{% if routing_ru_service_egress_enabled | bool %}
+table ip service_egress_nat {
+  chain postrouting {
+    type nat hook postrouting priority srcnat;
+    policy accept;
+
+    meta mark {{ routing_mark }} oifname "{{ wg_interface }}" snat to {{ wg_ru_ip }}
+  }
+}
+{% endif %}

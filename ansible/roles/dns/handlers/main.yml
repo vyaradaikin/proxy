@@ -1,0 +1,9 @@
+---
+- name: Restart dnsmasq
+  systemd:
+    name: dnsmasq
+    state: restarted
+    daemon_reload: true
+  when:
+    - dns_non_ru_forwarder_enabled | bool
+    - not ansible_check_mode

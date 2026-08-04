@@ -1,0 +1,23 @@
+---
+wg_transport: direct
+
+wg_udp2raw_install: true
+wg_udp2raw_download_url: https://github.com/wangyu-/udp2raw-tunnel/releases/latest/download/udp2raw_binaries.tar.gz
+wg_udp2raw_archive_path: /tmp/udp2raw_binaries.tar.gz
+wg_udp2raw_extract_dir: /opt/udp2raw
+wg_udp2raw_binary_path: /usr/local/bin/udp2raw
+wg_udp2raw_arch_map:
+  x86_64: udp2raw_amd64
+  amd64: udp2raw_amd64
+  aarch64: udp2raw_arm64
+  arm64: udp2raw_arm64
+  armv7l: udp2raw_arm
+  armv6l: udp2raw_arm
+wg_udp2raw_service_name: udp2raw-wg
+wg_udp2raw_local_port: 51821
+wg_udp2raw_public_port: 4433
+wg_udp2raw_raw_mode: faketcp
+wg_udp2raw_mtu: 1200
+wg_udp2raw_extra_args:
+  - --fix-gro
+wg_udp2raw_restart_state: restarted

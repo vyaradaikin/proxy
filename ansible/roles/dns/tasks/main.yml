@@ -1,0 +1,50 @@
+---
+- name: Validate DNS variables
+  assert:
+    that:
+      - wg_non_ru_ip is defined
+      - dns_non_ru_forwarder_enabled is defined
+      - dns_ru_manage_resolv_conf is defined
+    fail_msg: "Missing DNS variables"
+
+- name: Install Non-RU DNS forwarder
+  apt:
+    name: dnsmasq
+    state: present
+    update_cache: false
+  when:
+    - inventory_hostname in groups.get('non_ru', [])
+    - dns_non_ru_forwarder_enabled | bool
+
+- name: Write Non-RU DNS forwarder config
+  template:
+    src: dnsmasq-proxy-egress.conf.j2
+    dest: "{{ dns_non_ru_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart dnsmasq
+  when:
+    - inventory_hostname in groups.get('non_ru', [])
+    - dns_non_ru_forwarder_enabled | bool
+
+- name: Enable Non-RU DNS forwarder
+  systemd:
+    name: dnsmasq
+    enabled: true
+    state: started
+  when:
+    - inventory_hostname in groups.get('non_ru', [])
+    - dns_non_ru_forwarder_enabled | bool
+    - not ansible_check_mode
+
+- name: Write RU resolver config
+  template:
+    src: resolv.conf.j2
+    dest: "{{ dns_ru_resolv_conf_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - inventory_hostname in groups.get('ru', [])
+    - dns_ru_manage_resolv_conf | bool

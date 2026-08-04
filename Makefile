@@ -13,7 +13,7 @@ PLAYBOOK := $(ANSIBLE_ENV) ansible-playbook
 VAULT := $(ANSIBLE_ENV) ansible-vault
 LIMIT_ARGS := $(if $(LIMIT),--limit $(LIMIT),)
 
-.PHONY: help init-local secrets secrets-remote check check-ru check-non-ru check-wg check-tools plan-ru plan-non-ru apply-ru apply-non-ru apply-wg verify-ru verify-non-ru clean-generated
+.PHONY: help init-local secrets secrets-remote check check-ru check-non-ru check-wg check-tools plan-ru plan-non-ru apply-ru apply-non-ru apply-wg verify-ru verify-non-ru speed-ru speed-non-ru clean-generated
 
 help:
 	@echo "Targets:"
@@ -28,6 +28,8 @@ help:
 	@echo "  apply-wg        Apply WireGuard only"
 	@echo "  verify-ru       Verify RU services and routing"
 	@echo "  verify-non-ru   Verify Non-RU WireGuard and firewall"
+	@echo "  speed-ru        Run WireGuard iperf3 speed test from RU to Non-RU"
+	@echo "  speed-non-ru    Run WireGuard iperf3 speed test from Non-RU to RU"
 	@echo ""
 	@echo "Set local options in .env, for example:"
 	@echo "  VAULT_ARGS=--vault-password-file ~/.ansible/vault_password"
@@ -71,6 +73,7 @@ check-tools:
 	$(PLAYBOOK) --syntax-check ansible/playbooks/generate-secrets.yml
 	$(PLAYBOOK) --syntax-check ansible/playbooks/generate-secrets-remote.yml
 	$(PLAYBOOK) --syntax-check ansible/playbooks/verify.yml
+	$(PLAYBOOK) --syntax-check ansible/playbooks/speedtest.yml
 
 plan-ru:
 	$(PLAYBOOK) ansible/playbooks/ru-gateway.yml $(LIMIT_ARGS) --check --diff $(VAULT_ARGS)
@@ -92,6 +95,12 @@ verify-ru:
 
 verify-non-ru:
 	$(PLAYBOOK) ansible/playbooks/verify.yml --limit non_ru $(VAULT_ARGS)
+
+speed-ru:
+	$(PLAYBOOK) ansible/playbooks/speedtest.yml --limit ru $(VAULT_ARGS)
+
+speed-non-ru:
+	$(PLAYBOOK) ansible/playbooks/speedtest.yml --limit non_ru $(VAULT_ARGS)
 
 clean-generated:
 	rm -f $(ANSIBLE_HOME)/generated-vault.yml

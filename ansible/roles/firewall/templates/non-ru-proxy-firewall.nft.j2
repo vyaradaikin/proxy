@@ -6,6 +6,22 @@ table inet proxy_firewall {
 {% for port in firewall_non_ru_udp_ports + firewall_non_ru_extra_udp_ports %}
     udp dport {{ port }} accept
 {% endfor %}
+{% if dns_non_ru_forwarder_enabled | default(false) | bool %}
+    iifname "{{ wg_interface }}" ip saddr {{ wg_ru_ip }} udp dport {{ dns_non_ru_listen_port }} accept
+    iifname "{{ wg_interface }}" ip saddr {{ wg_ru_ip }} tcp dport {{ dns_non_ru_listen_port }} accept
+{% endif %}
+{% if wg_speedtest_enabled | default(false) | bool %}
+    iifname "{{ wg_interface }}" ip saddr {{ wg_ru_ip }} tcp dport {{ wg_speedtest_port }} accept
+{% endif %}
+{% if wg_transport == 'udp2raw' and wg_udp2raw_raw_mode == 'udp' %}
+    udp dport {{ wg_udp2raw_public_port }} accept
+{% endif %}
+{% if wg_transport == 'udp2raw' and wg_udp2raw_raw_mode == 'faketcp' %}
+    tcp dport {{ wg_udp2raw_public_port }} accept
+{% endif %}
+{% if wg_transport == 'udp2raw' and wg_udp2raw_raw_mode == 'icmp' %}
+    ip protocol icmp accept
+{% endif %}
 {% for port in firewall_non_ru_tcp_allow_from_ru + firewall_non_ru_extra_tcp_ports %}
     ip saddr {{ ru_public_ip }} tcp dport {{ port }} accept
 {% endfor %}

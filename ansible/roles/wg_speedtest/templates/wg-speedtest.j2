@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+peer_ip="${1:-{{ wg_speedtest_peer_ip }}}"
+port="${WG_SPEEDTEST_PORT:-{{ wg_speedtest_port }}}"
+duration="${WG_SPEEDTEST_DURATION:-{{ wg_speedtest_duration }}}"
+parallel="${WG_SPEEDTEST_PARALLEL:-{{ wg_speedtest_parallel }}}"
+json="${WG_SPEEDTEST_JSON:-{{ wg_speedtest_json | bool | ternary('1', '0') }}}"
+reverse="${WG_SPEEDTEST_REVERSE:-{{ wg_speedtest_reverse | bool | ternary('1', '0') }}}"
+
+echo "WireGuard speed test"
+echo "  local: {{ inventory_hostname }} ({{ wg_speedtest_bind_ip }})"
+echo "  peer:  {{ wg_speedtest_peer_name }} (${peer_ip})"
+echo "  port:  ${port}"
+echo "  time:  ${duration}s"
+echo
+
+ping -c 3 -W 2 "${peer_ip}"
+echo
+
+args="-c ${peer_ip} -p ${port} -t ${duration} -P ${parallel} --bind {{ wg_speedtest_bind_ip }}"
+if [ "${json}" = "1" ]; then
+  args="${args} --json"
+fi
+
+echo "Forward test: {{ wg_speedtest_bind_ip }} -> ${peer_ip}"
+iperf3 ${args}
+
+if [ "${reverse}" = "1" ]; then
+  echo
+  echo "Reverse test: ${peer_ip} -> {{ wg_speedtest_bind_ip }}"
+  iperf3 ${args} --reverse
+fi

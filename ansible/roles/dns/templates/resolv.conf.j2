@@ -1,0 +1,10 @@
+# Managed by Ansible. Local RU host resolver for proxy service egress.
+{% for nameserver in dns_ru_nameservers %}
+nameserver {{ nameserver }}
+{% endfor %}
+{% if dns_ru_search_domains | length > 0 %}
+search {{ dns_ru_search_domains | join(' ') }}
+{% endif %}
+{% if dns_ru_resolv_options | length > 0 %}
+options {{ dns_ru_resolv_options | join(' ') }}
+{% endif %}

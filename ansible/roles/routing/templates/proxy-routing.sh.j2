@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ip route replace default dev {{ wg_interface }} table {{ routing_table_id }}
+ip route replace default dev {{ wg_interface }} src {{ wg_ru_ip }} table {{ routing_table_id }}
 
 if ! ip rule show | grep -q "fwmark 0x{{ '%x' % (routing_mark | int) }} lookup {{ routing_table }}"; then
   ip rule add priority {{ routing_rule_priority_mark }} fwmark {{ routing_mark }} table {{ routing_table_id }}

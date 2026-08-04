@@ -15,7 +15,10 @@
 
   roles:
     - common
+    - wireguard_transport
     - wireguard
     - xray
     - routing
+    - dns
+    - wg_speedtest
     - firewall

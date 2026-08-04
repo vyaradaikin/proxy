@@ -1,0 +1,177 @@
+---
+- name: Validate WireGuard transport mode
+  assert:
+    that:
+      - wg_transport in ['direct', 'udp2raw']
+    fail_msg: "wg_transport must be one of: direct, udp2raw"
+
+- name: Configure direct WireGuard transport facts
+  set_fact:
+    wg_transport_active: false
+  when: wg_transport == 'direct'
+
+- name: Validate udp2raw variables
+  assert:
+    that:
+      - wg_udp2raw_password is defined
+      - wg_udp2raw_password | length > 0
+      - wg_udp2raw_binary_path is defined
+      - wg_udp2raw_local_port is defined
+      - wg_udp2raw_public_port is defined
+      - wg_udp2raw_raw_mode in ['faketcp', 'udp', 'icmp']
+      - non_ru_public_ip is defined
+      - wg_port is defined
+    fail_msg: "Missing udp2raw transport variables"
+  when: wg_transport == 'udp2raw'
+
+- name: Check udp2raw binary
+  stat:
+    path: "{{ wg_udp2raw_binary_path }}"
+  register: wg_udp2raw_binary
+  when: wg_transport == 'udp2raw'
+
+- name: Validate udp2raw install architecture
+  assert:
+    that:
+      - ansible_architecture in wg_udp2raw_arch_map
+    fail_msg: "Unsupported architecture for udp2raw install: {{ ansible_architecture }}"
+  when:
+    - wg_transport == 'udp2raw'
+    - wg_udp2raw_install | bool
+    - not wg_udp2raw_binary.stat.exists
+    - not ansible_check_mode
+
+- name: Create udp2raw extract directory
+  file:
+    path: "{{ wg_udp2raw_extract_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - wg_transport == 'udp2raw'
+    - wg_udp2raw_install | bool
+    - not wg_udp2raw_binary.stat.exists
+    - not ansible_check_mode
+
+- name: Download udp2raw archive
+  get_url:
+    url: "{{ wg_udp2raw_download_url }}"
+    dest: "{{ wg_udp2raw_archive_path }}"
+    mode: "0644"
+  when:
+    - wg_transport == 'udp2raw'
+    - wg_udp2raw_install | bool
+    - not wg_udp2raw_binary.stat.exists
+    - not ansible_check_mode
+
+- name: Extract udp2raw archive
+  unarchive:
+    src: "{{ wg_udp2raw_archive_path }}"
+    dest: "{{ wg_udp2raw_extract_dir }}"
+    remote_src: true
+  when:
+    - wg_transport == 'udp2raw'
+    - wg_udp2raw_install | bool
+    - not wg_udp2raw_binary.stat.exists
+    - not ansible_check_mode
+
+- name: Find extracted udp2raw binary
+  shell: >-
+    find {{ wg_udp2raw_extract_dir | quote }} -maxdepth 2 -type f
+    \( -name {{ wg_udp2raw_arch_map[ansible_architecture] | quote }}
+    -o -name {{ (wg_udp2raw_arch_map[ansible_architecture] ~ '_*') | quote }} \)
+    | sort
+    | head -n 1
+  register: wg_udp2raw_extracted_binary
+  changed_when: false
+  when:
+    - wg_transport == 'udp2raw'
+    - wg_udp2raw_install | bool
+    - not wg_udp2raw_binary.stat.exists
+    - not ansible_check_mode
+
+- name: Assert extracted udp2raw binary exists
+  assert:
+    that:
+      - wg_udp2raw_extracted_binary.stdout | length > 0
+    fail_msg: "Could not find {{ wg_udp2raw_arch_map[ansible_architecture] }} in {{ wg_udp2raw_extract_dir }}"
+  when:
+    - wg_transport == 'udp2raw'
+    - wg_udp2raw_install | bool
+    - not wg_udp2raw_binary.stat.exists
+    - not ansible_check_mode
+
+- name: Install udp2raw binary
+  copy:
+    src: "{{ wg_udp2raw_extracted_binary.stdout }}"
+    dest: "{{ wg_udp2raw_binary_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  when:
+    - wg_transport == 'udp2raw'
+    - wg_udp2raw_install | bool
+    - not wg_udp2raw_binary.stat.exists
+    - not ansible_check_mode
+
+- name: Recheck udp2raw binary
+  stat:
+    path: "{{ wg_udp2raw_binary_path }}"
+  register: wg_udp2raw_binary
+  when:
+    - wg_transport == 'udp2raw'
+    - not ansible_check_mode
+
+- name: Assert udp2raw binary exists
+  assert:
+    that:
+      - wg_udp2raw_binary.stat.exists
+    fail_msg: "udp2raw binary is missing at {{ wg_udp2raw_binary_path }}; set wg_udp2raw_install=true or set wg_transport=direct"
+  when:
+    - wg_transport == 'udp2raw'
+    - not ansible_check_mode
+
+- name: Configure RU udp2raw transport facts
+  set_fact:
+    wg_transport_active: true
+    wg_peer_endpoint_override: "127.0.0.1:{{ wg_udp2raw_local_port }}"
+    wg_mtu: "{{ wg_udp2raw_mtu }}"
+    wg_udp2raw_role_flag: "-c"
+    wg_udp2raw_listen: "127.0.0.1:{{ wg_udp2raw_local_port }}"
+    wg_udp2raw_remote: "{{ non_ru_public_ip }}:{{ wg_udp2raw_public_port }}"
+  when:
+    - wg_transport == 'udp2raw'
+    - inventory_hostname in groups.get('ru', [])
+
+- name: Configure Non-RU udp2raw transport facts
+  set_fact:
+    wg_transport_active: true
+    wg_mtu: "{{ wg_udp2raw_mtu }}"
+    wg_udp2raw_role_flag: "-s"
+    wg_udp2raw_listen: "0.0.0.0:{{ wg_udp2raw_public_port }}"
+    wg_udp2raw_remote: "127.0.0.1:{{ wg_port }}"
+  when:
+    - wg_transport == 'udp2raw'
+    - inventory_hostname in groups.get('non_ru', [])
+
+- name: Write udp2raw systemd service
+  template:
+    src: udp2raw-wg.service.j2
+    dest: "/etc/systemd/system/{{ wg_udp2raw_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart WireGuard transport
+  when: wg_transport == 'udp2raw'
+
+- name: Enable and start udp2raw transport
+  systemd:
+    name: "{{ wg_udp2raw_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - wg_transport == 'udp2raw'
+    - not ansible_check_mode

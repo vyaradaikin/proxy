@@ -43,7 +43,7 @@
     wg_private_key: "{{ wg_ru_private_key }}"
     wg_peer_public_key: "{{ wg_non_ru_public_key }}"
     wg_peer_allowed_ips: "0.0.0.0/0"
-    wg_peer_endpoint: "{{ non_ru_public_ip }}:{{ wg_port }}"
+    wg_peer_endpoint: "{{ wg_peer_endpoint_override | default(non_ru_public_ip ~ ':' ~ wg_port) }}"
     wg_table: "{{ wg_route_table }}"
     wg_post_up: []
     wg_post_down: []

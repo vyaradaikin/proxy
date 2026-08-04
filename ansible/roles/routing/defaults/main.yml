@@ -6,3 +6,29 @@ routing_rule_priority_source: 32765
 routing_manage_source_rule: true
 routing_enable_ipv4_forward: true
 routing_disable_rp_filter: true
+routing_ru_service_egress_enabled: false
+routing_ru_service_egress_tcp_ports:
+  - 80
+  - 443
+  - 53
+routing_ru_service_egress_udp_ports:
+  - 53
+  - 123
+routing_ru_service_egress_excluded_ipv4_cidrs:
+  - 0.0.0.0/8
+  - 10.0.0.0/8
+  - 100.64.0.0/10
+  - 127.0.0.0/8
+  - 169.254.0.0/16
+  - 172.16.0.0/12
+  - 192.0.2.0/24
+  - 192.168.0.0/16
+  - 198.51.100.0/24
+  - 203.0.113.0/24
+  - 224.0.0.0/4
+  - 240.0.0.0/4
+routing_ru_service_egress_excluded_ipv4_addresses:
+  - "{{ ru_public_ip | default('') }}"
+  - "{{ non_ru_public_ip | default('') }}"
+  - "{{ wg_ru_ip | default('') }}"
+  - "{{ wg_non_ru_ip | default('') }}"

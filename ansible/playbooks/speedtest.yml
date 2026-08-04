@@ -4,6 +4,7 @@
     - non_ru
   become: true
   vars_files:
+    - ../roles/wg_speedtest/defaults/main.yml
     - ../group_vars/all.yml
   pre_tasks:
     - name: Load local variable overrides
@@ -15,9 +16,12 @@
       ignore_errors: true
       no_log: true
 
-  roles:
-    - common
-    - wireguard_transport
-    - wireguard
-    - dns
-    - wg_speedtest
+  tasks:
+    - name: Run WireGuard speedtest
+      command: "{{ wg_speedtest_script_path }}"
+      register: wg_speedtest_result
+      changed_when: false
+
+    - name: Show WireGuard speedtest result
+      debug:
+        var: wg_speedtest_result.stdout_lines

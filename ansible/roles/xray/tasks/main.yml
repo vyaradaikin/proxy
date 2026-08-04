@@ -1,0 +1,96 @@
+---
+- name: Skip Xray outside RU gateway
+  meta: end_host
+  when: inventory_hostname not in groups.get('ru', [])
+
+- name: Validate Xray variables
+  assert:
+    that:
+      - xray_binary_path is defined
+      - xray_config_dir is defined
+      - xray_config_path is defined
+      - xray_geo_dir is defined
+      - xray_port is defined
+      - xray_dest is defined
+      - xray_sni is defined
+      - xray_short_id is defined
+      - xray_short_id | length > 0
+      - xray_client_id is defined
+      - xray_client_id | length > 0
+      - xray_reality_private_key is defined
+      - xray_reality_private_key | length > 0
+      - routing_mark is defined
+    fail_msg: "Missing Xray Reality variables; provide xray_client_id and xray_reality_private_key through vault/inventory/extra-vars"
+
+- name: Check Xray binary
+  stat:
+    path: "{{ xray_binary_path }}"
+  register: xray_binary
+
+- name: Download Xray installer
+  get_url:
+    url: "{{ xray_install_script_url }}"
+    dest: "{{ xray_install_script_path }}"
+    mode: "0755"
+  when:
+    - xray_install | bool
+    - not xray_binary.stat.exists
+
+- name: Install Xray
+  command: "bash {{ xray_install_script_path }} install"
+  when:
+    - xray_install | bool
+    - not xray_binary.stat.exists
+
+- name: Verify Xray binary exists
+  stat:
+    path: "{{ xray_binary_path }}"
+  register: xray_binary_after
+
+- name: Assert Xray binary is present
+  assert:
+    that:
+      - xray_binary_after.stat.exists
+    fail_msg: "Xray binary is missing; set xray_install=true or install Xray before running this role"
+
+- name: Create Xray configuration directory
+  file:
+    path: "{{ xray_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create Xray geo directory
+  file:
+    path: "{{ xray_geo_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write Xray configuration
+  template:
+    src: config.json.j2
+    dest: "{{ xray_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "{{ xray_binary_path }} run -test -config %s"
+  notify: Restart Xray
+
+- name: Write Xray systemd service
+  template:
+    src: xray.service.j2
+    dest: "{{ xray_service_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Xray
+
+- name: Enable and start Xray
+  systemd:
+    name: xray
+    enabled: true
+    state: started
+    daemon_reload: true

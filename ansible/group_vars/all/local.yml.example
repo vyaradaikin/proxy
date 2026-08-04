@@ -1,0 +1,27 @@
+---
+# Copy to ansible/group_vars/all/local.yml and set environment-specific values.
+
+wg_interface: wg0
+
+wg_ru_ip: 10.100.0.2
+wg_non_ru_ip: 10.100.0.1
+wg_network: 10.100.0.0/24
+
+wg_port: 51820
+wg_mtu: 1380
+
+ru_public_ip: 203.0.113.10
+non_ru_public_ip: 198.51.100.10
+non_ru_external_interface: eth0
+
+xray_dest: example.com:443
+xray_sni: example.com
+
+routing_table: wgexit
+routing_table_id: 100
+routing_mark: 100
+
+firewall_ru_extra_tcp_ports: []
+firewall_ru_extra_udp_ports: []
+firewall_non_ru_extra_tcp_ports: []
+firewall_non_ru_extra_udp_ports: []

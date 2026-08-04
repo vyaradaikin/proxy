@@ -1,0 +1,15 @@
+---
+- name: Restart nftables
+  systemd:
+    name: nftables
+    state: restarted
+    enabled: true
+  when: not ansible_check_mode
+
+- name: Reload proxy firewall
+  systemd:
+    name: proxy-firewall
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  when: not ansible_check_mode

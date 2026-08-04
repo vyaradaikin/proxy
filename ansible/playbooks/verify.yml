@@ -1,0 +1,41 @@
+---
+- hosts:
+    - ru
+    - non_ru
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  pre_tasks:
+    - name: Load local variable overrides
+      include_vars: ../group_vars/all/local.yml
+      ignore_errors: true
+
+    - name: Load vault secrets
+      include_vars: ../group_vars/all/vault.yml
+      ignore_errors: true
+      no_log: true
+
+  tasks:
+    - name: Verify RU gateway
+      shell: |
+        set -e
+        wg show {{ wg_interface }}
+        systemctl is-active wg-quick@{{ wg_interface }} xray proxy-routing nftables
+        ip rule
+        ip route show table {{ routing_table }}
+        {{ xray_binary_path }} run -test -config {{ xray_config_path }}
+        ping -c 3 -W 2 {{ wg_non_ru_ip }}
+        curl --max-time 15 --interface {{ wg_interface }} -4 https://ifconfig.me
+      changed_when: false
+      when: inventory_hostname in groups.get('ru', [])
+
+    - name: Verify Non-RU exit
+      shell: |
+        set -e
+        wg show {{ wg_interface }}
+        systemctl is-active wg-quick@{{ wg_interface }} nftables
+        sysctl net.ipv4.ip_forward
+        iptables -t nat -L -n -v
+        nft list ruleset
+      changed_when: false
+      when: inventory_hostname in groups.get('non_ru', [])

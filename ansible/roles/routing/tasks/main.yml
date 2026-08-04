@@ -1,0 +1,71 @@
+---
+- name: Skip routing outside RU gateway
+  meta: end_host
+  when: inventory_hostname not in groups.get('ru', [])
+
+- name: Validate routing variables
+  assert:
+    that:
+      - wg_interface is defined
+      - wg_ru_ip is defined
+      - routing_table is defined
+      - routing_table_id is defined
+      - routing_mark is defined
+    fail_msg: "Missing routing variables"
+
+- name: Enable IPv4 forwarding on RU gateway
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+  when: routing_enable_ipv4_forward | bool
+
+- name: Disable strict rp_filter
+  sysctl:
+    name: "{{ item }}"
+    value: "0"
+    state: present
+    sysctl_set: true
+    reload: true
+  loop:
+    - net.ipv4.conf.all.rp_filter
+    - net.ipv4.conf.default.rp_filter
+  when: routing_disable_rp_filter | bool
+
+- name: Register policy routing table
+  lineinfile:
+    path: /etc/iproute2/rt_tables
+    regexp: "^{{ routing_table_id }}\\s+{{ routing_table }}$"
+    line: "{{ routing_table_id }} {{ routing_table }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Write policy routing script
+  template:
+    src: proxy-routing.sh.j2
+    dest: "{{ routing_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart proxy routing
+
+- name: Write policy routing service
+  template:
+    src: proxy-routing.service.j2
+    dest: "{{ routing_service_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart proxy routing
+
+- name: Enable and apply policy routing
+  systemd:
+    name: proxy-routing
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode

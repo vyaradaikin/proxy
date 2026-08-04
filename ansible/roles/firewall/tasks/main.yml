@@ -1,0 +1,70 @@
+---
+- name: Validate firewall variables
+  assert:
+    that:
+      - wg_interface is defined
+      - wg_port is defined
+      - ru_public_ip is defined
+    fail_msg: "Missing firewall variables"
+
+- name: Ensure nftables package is present
+  apt:
+    name: nftables
+    state: present
+    update_cache: false
+
+- name: Configure RU nftables ruleset
+  template:
+    src: ru-nftables.conf.j2
+    dest: "{{ firewall_ru_nftables_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+    validate: "nft -c -f %s"
+  notify: Restart nftables
+  when:
+    - inventory_hostname in groups.get('ru', [])
+    - firewall_manage_ru_main_ruleset | bool
+
+- name: Ensure nftables snippets directory exists on Non-RU
+  file:
+    path: "{{ firewall_non_ru_overlay_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - inventory_hostname in groups.get('non_ru', [])
+    - firewall_manage_non_ru_overlay_ruleset | bool
+
+- name: Write Non-RU nftables overlay ruleset
+  template:
+    src: non-ru-proxy-firewall.nft.j2
+    dest: "{{ firewall_non_ru_overlay_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "nft -c -f %s"
+  notify: Reload proxy firewall
+  when:
+    - inventory_hostname in groups.get('non_ru', [])
+    - firewall_manage_non_ru_overlay_ruleset | bool
+
+- name: Write Non-RU nftables overlay service
+  template:
+    src: proxy-firewall.service.j2
+    dest: "{{ firewall_non_ru_loader_service_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload proxy firewall
+  when:
+    - inventory_hostname in groups.get('non_ru', [])
+    - firewall_manage_non_ru_overlay_ruleset | bool
+
+- name: Enable nftables
+  systemd:
+    name: nftables
+    enabled: true
+    state: started
+  when: not ansible_check_mode

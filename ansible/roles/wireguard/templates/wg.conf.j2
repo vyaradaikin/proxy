@@ -1,0 +1,26 @@
+[Interface]
+Address = {{ wg_address }}/24
+PrivateKey = {{ wg_private_key }}
+{% if wg_listen_port is defined %}
+ListenPort = {{ wg_listen_port }}
+{% endif %}
+{% if wg_mtu is defined %}
+MTU = {{ wg_mtu }}
+{% endif %}
+{% if wg_table is defined %}
+Table = {{ wg_table }}
+{% endif %}
+{% for command in wg_post_up | default([]) %}
+PostUp = {{ command }}
+{% endfor %}
+{% for command in wg_post_down | default([]) %}
+PostDown = {{ command }}
+{% endfor %}
+
+[Peer]
+PublicKey = {{ wg_peer_public_key }}
+AllowedIPs = {{ wg_peer_allowed_ips }}
+{% if wg_peer_endpoint is defined %}
+Endpoint = {{ wg_peer_endpoint }}
+PersistentKeepalive = {{ wg_persistent_keepalive }}
+{% endif %}

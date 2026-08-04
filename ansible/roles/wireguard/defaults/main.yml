@@ -1,0 +1,11 @@
+---
+wg_config_dir: /etc/wireguard
+wg_config_owner: root
+wg_config_group: root
+wg_config_mode: "0600"
+
+wg_enable_nat: true
+wg_enable_forward_rules: true
+wg_persistent_keepalive: 25
+
+wg_route_table: "{{ routing_table_id | default(omit) }}"

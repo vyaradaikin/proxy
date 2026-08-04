@@ -1,0 +1,72 @@
+{
+  "log": {
+    "loglevel": "{{ xray_loglevel }}"
+  },
+  "inbounds": [
+    {
+      "port": {{ xray_port }},
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "{{ xray_client_id }}",
+            "flow": "xtls-rprx-vision"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_dest }}",
+          "xver": 0,
+          "serverNames": [
+            "{{ xray_sni }}"
+          ],
+          "privateKey": "{{ xray_reality_private_key }}",
+          "shortIds": [
+            "{{ xray_short_id }}"
+          ]
+        }
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "{{ xray_domain_strategy }}",
+    "rules": [
+      {
+        "type": "field",
+        "domain": {{ xray_ru_domains | to_json }},
+        "outboundTag": "{{ xray_direct_outbound_tag }}"
+      },
+      {
+        "type": "field",
+        "ip": {{ xray_ru_ips | to_json }},
+        "outboundTag": "{{ xray_direct_outbound_tag }}"
+      }
+    ]
+  },
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "{{ xray_default_outbound_tag }}",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      },
+      "streamSettings": {
+        "sockopt": {
+          "mark": {{ routing_mark }}
+        }
+      }
+    },
+    {
+      "protocol": "freedom",
+      "tag": "{{ xray_direct_outbound_tag }}",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      }
+    }
+  ]
+}

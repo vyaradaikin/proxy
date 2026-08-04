@@ -1,0 +1,124 @@
+---
+- name: Validate host role
+  assert:
+    that:
+      - (inventory_hostname in groups.get('ru', [])) or (inventory_hostname in groups.get('non_ru', []))
+    fail_msg: "wireguard role supports only hosts in the ru or non_ru inventory groups"
+
+- name: Validate common WireGuard variables
+  assert:
+    that:
+      - wg_interface is defined
+      - wg_ru_ip is defined
+      - wg_non_ru_ip is defined
+      - wg_network is defined
+      - wg_port is defined
+      - ru_public_ip is defined
+      - non_ru_public_ip is defined
+    fail_msg: "Missing required WireGuard variables in inventory/group_vars"
+
+- name: Validate RU WireGuard keys
+  assert:
+    that:
+      - wg_ru_private_key is defined
+      - wg_ru_private_key | length > 0
+      - wg_non_ru_public_key is defined
+      - wg_non_ru_public_key | length > 0
+    fail_msg: "Missing RU WireGuard keys; provide wg_ru_private_key and wg_non_ru_public_key"
+  when: inventory_hostname in groups.get('ru', [])
+
+- name: Validate Non-RU WireGuard keys
+  assert:
+    that:
+      - wg_non_ru_private_key is defined
+      - wg_non_ru_private_key | length > 0
+      - wg_ru_public_key is defined
+      - wg_ru_public_key | length > 0
+    fail_msg: "Missing Non-RU WireGuard keys; provide wg_non_ru_private_key and wg_ru_public_key"
+  when: inventory_hostname in groups.get('non_ru', [])
+
+- name: Configure RU WireGuard facts
+  set_fact:
+    wg_address: "{{ wg_ru_ip }}"
+    wg_private_key: "{{ wg_ru_private_key }}"
+    wg_peer_public_key: "{{ wg_non_ru_public_key }}"
+    wg_peer_allowed_ips: "0.0.0.0/0"
+    wg_peer_endpoint: "{{ non_ru_public_ip }}:{{ wg_port }}"
+    wg_table: "{{ wg_route_table }}"
+    wg_post_up: []
+    wg_post_down: []
+  when: inventory_hostname in groups.get('ru', [])
+
+- name: Configure Non-RU WireGuard facts
+  set_fact:
+    wg_address: "{{ wg_non_ru_ip }}"
+    wg_private_key: "{{ wg_non_ru_private_key }}"
+    wg_listen_port: "{{ wg_port }}"
+    wg_peer_public_key: "{{ wg_ru_public_key }}"
+    wg_peer_allowed_ips: "{{ wg_ru_ip }}/32"
+    wg_post_up: >-
+      {{
+        ([
+          'iptables -A FORWARD -i ' ~ wg_interface ~ ' -j ACCEPT',
+          'iptables -A FORWARD -o ' ~ wg_interface ~ ' -j ACCEPT'
+        ] if wg_enable_forward_rules | bool else [])
+        +
+        ([
+          'iptables -t nat -A POSTROUTING -s ' ~ wg_network ~ ' -o ' ~ non_ru_external_interface ~ ' -j MASQUERADE'
+        ] if wg_enable_nat | bool else [])
+      }}
+    wg_post_down: >-
+      {{
+        ([
+          'iptables -D FORWARD -i ' ~ wg_interface ~ ' -j ACCEPT',
+          'iptables -D FORWARD -o ' ~ wg_interface ~ ' -j ACCEPT'
+        ] if wg_enable_forward_rules | bool else [])
+        +
+        ([
+          'iptables -t nat -D POSTROUTING -s ' ~ wg_network ~ ' -o ' ~ non_ru_external_interface ~ ' -j MASQUERADE'
+        ] if wg_enable_nat | bool else [])
+      }}
+  when: inventory_hostname in groups.get('non_ru', [])
+
+- name: Validate Non-RU exit variables
+  assert:
+    that:
+      - non_ru_external_interface is defined
+      - non_ru_external_interface | length > 0
+    fail_msg: "Missing non_ru_external_interface for Non-RU WireGuard NAT"
+  when:
+    - inventory_hostname in groups.get('non_ru', [])
+    - wg_enable_nat | bool
+
+- name: Create WireGuard configuration directory
+  file:
+    path: "{{ wg_config_dir }}"
+    state: directory
+    owner: "{{ wg_config_owner }}"
+    group: "{{ wg_config_group }}"
+    mode: "0700"
+
+- name: Enable IPv4 forwarding on Non-RU exit
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+  when: inventory_hostname in groups.get('non_ru', [])
+
+- name: Write WireGuard configuration
+  template:
+    src: wg.conf.j2
+    dest: "{{ wg_config_dir }}/{{ wg_interface }}.conf"
+    owner: "{{ wg_config_owner }}"
+    group: "{{ wg_config_group }}"
+    mode: "{{ wg_config_mode }}"
+  notify: Restart WireGuard
+
+- name: Enable and start WireGuard
+  systemd:
+    name: "wg-quick@{{ wg_interface }}"
+    enabled: true
+    state: started
+    daemon_reload: true

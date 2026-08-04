@@ -1,0 +1,8 @@
+---
+routing_script_path: /usr/local/sbin/proxy-routing.sh
+routing_service_path: /etc/systemd/system/proxy-routing.service
+routing_rule_priority_mark: 32764
+routing_rule_priority_source: 32765
+routing_manage_source_rule: true
+routing_enable_ipv4_forward: true
+routing_disable_rp_filter: true

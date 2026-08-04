@@ -1,0 +1,13 @@
+[Unit]
+Description=Proxy nftables overlay firewall rules
+After=network-online.target nftables.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStartPre=-/usr/sbin/nft delete table inet proxy_firewall
+ExecStart=/usr/sbin/nft -f {{ firewall_non_ru_overlay_path }}
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,47 @@
+wg_interface: wg0
+
+wg_ru_ip: 10.100.0.2
+wg_non_ru_ip: 10.100.0.1
+wg_network: 10.100.0.0/24
+
+wg_port: 51820
+wg_mtu: 1380
+
+ru_public_ip: 203.0.113.10
+non_ru_public_ip: 198.51.100.10
+non_ru_external_interface: eth0
+
+xray_port: 443
+
+xray_dest: example.com:443
+xray_sni: example.com
+
+xray_short_id: ""
+xray_config_dir: /usr/local/etc/xray
+xray_config_path: /usr/local/etc/xray/config.json
+xray_binary_path: /usr/local/bin/xray
+xray_geo_dir: /usr/local/share/xray
+xray_user: nobody
+xray_domain_strategy: IPIfNonMatch
+xray_default_outbound_tag: non_ru
+xray_direct_outbound_tag: direct
+xray_ru_domains:
+  - geosite:category-ru
+xray_ru_ips:
+  - geoip:ru
+
+routing_table: wgexit
+routing_table_id: 100
+routing_mark: 100
+
+firewall_ssh_port: 22
+firewall_ru_tcp_ports:
+  - "{{ firewall_ssh_port }}"
+  - "{{ xray_port }}"
+firewall_ru_udp_ports:
+  - "{{ wg_port }}"
+firewall_non_ru_tcp_allow_from_ru:
+  - 443
+  - 8888
+firewall_non_ru_udp_ports:
+  - "{{ wg_port }}"

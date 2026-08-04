@@ -1,0 +1,12 @@
+[Unit]
+Description=Proxy policy routing
+After=network-online.target wg-quick@{{ wg_interface }}.service
+Wants=network-online.target wg-quick@{{ wg_interface }}.service
+
+[Service]
+Type=oneshot
+ExecStart={{ routing_script_path }}
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

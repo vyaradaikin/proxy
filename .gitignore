@@ -1,0 +1,6 @@
+.ansible/
+.env
+AI_CONTEXT.md
+ansible/group_vars/all/vault.yml
+ansible/group_vars/all/local.yml
+ansible/inventory/hosts.yml

@@ -1,0 +1,7 @@
+---
+xray_install: true
+xray_install_script_url: https://github.com/XTLS/Xray-install/raw/main/install-release.sh
+xray_install_script_path: /tmp/xray-install-release.sh
+xray_service_path: /etc/systemd/system/xray.service
+xray_loglevel: warning
+xray_restart_state: restarted

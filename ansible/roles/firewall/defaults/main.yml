@@ -1,0 +1,10 @@
+---
+firewall_manage_ru_main_ruleset: true
+firewall_manage_non_ru_overlay_ruleset: true
+firewall_ru_nftables_path: /etc/nftables.conf
+firewall_non_ru_overlay_path: /etc/nftables.d/proxy-firewall.nft
+firewall_non_ru_loader_service_path: /etc/systemd/system/proxy-firewall.service
+firewall_ru_extra_tcp_ports: []
+firewall_ru_extra_udp_ports: []
+firewall_non_ru_extra_tcp_ports: []
+firewall_non_ru_extra_udp_ports: []

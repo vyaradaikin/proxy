@@ -1,0 +1,21 @@
+table inet proxy_firewall {
+  chain input {
+    type filter hook input priority -100;
+    policy accept;
+
+{% for port in firewall_non_ru_udp_ports + firewall_non_ru_extra_udp_ports %}
+    udp dport {{ port }} accept
+{% endfor %}
+{% for port in firewall_non_ru_tcp_allow_from_ru + firewall_non_ru_extra_tcp_ports %}
+    ip saddr {{ ru_public_ip }} tcp dport {{ port }} accept
+{% endfor %}
+  }
+
+  chain forward {
+    type filter hook forward priority -100;
+    policy accept;
+
+    iifname "{{ wg_interface }}" accept
+    oifname "{{ wg_interface }}" accept
+  }
+}

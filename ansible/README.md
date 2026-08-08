@@ -101,6 +101,12 @@ WireGuard only:
 make apply-wg
 ```
 
+## Client Profile Notes
+
+Client applications connect to the RU gateway with VLESS Reality over TCP. The client profile must include the generated `xray_client_id`, `xray_reality_public_key`, `xray_short_id`, `xray_sni`, and `flow=xtls-rprx-vision`.
+
+This deployment is IPv4-only by design. In clients such as Streisand Desktop, disable IPv6 for the profile or application tunnel. Leaving IPv6 enabled can make the client try unreachable IPv6 routes or DNS answers, which may look like a broken Reality/Xray profile even when the server is healthy.
+
 ## Optional WireGuard Transport Obfuscation
 
 Default mode is plain WireGuard:

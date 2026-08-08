@@ -13,6 +13,11 @@ table inet proxy_firewall {
 {% if wg_speedtest_enabled | default(false) | bool %}
     iifname "{{ wg_interface }}" ip saddr {{ wg_ru_ip }} tcp dport {{ wg_speedtest_port }} accept
 {% endif %}
+{% if monitoring_exporter_enabled | default(false) | bool %}
+{% for source_ip in monitoring_scrape_source_ips | default([]) %}
+    ip saddr {{ source_ip }} tcp dport {{ monitoring_node_exporter_port }} accept
+{% endfor %}
+{% endif %}
 {% if wg_transport == 'udp2raw' and wg_udp2raw_raw_mode == 'udp' %}
     udp dport {{ wg_udp2raw_public_port }} accept
 {% endif %}

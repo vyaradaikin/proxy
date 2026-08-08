@@ -55,6 +55,15 @@ table inet filter {
 {% if wg_speedtest_enabled | default(false) | bool %}
     iifname "{{ wg_interface }}" ip saddr {{ wg_non_ru_ip }} tcp dport {{ wg_speedtest_port }} accept
 {% endif %}
+{% if monitoring_exporter_enabled | default(false) | bool %}
+{% if monitoring_scrape_source_ips | default([]) | length > 0 %}
+{% for source_ip in monitoring_scrape_source_ips %}
+    ip saddr {{ source_ip }} tcp dport {{ monitoring_node_exporter_port }} accept
+{% endfor %}
+{% else %}
+    iifname "{{ wg_interface }}" ip saddr {{ wg_non_ru_ip }} tcp dport {{ monitoring_node_exporter_port }} accept
+{% endif %}
+{% endif %}
 {% for port in firewall_ru_tcp_ports + firewall_ru_extra_tcp_ports %}
     tcp dport {{ port }} accept
 {% endfor %}

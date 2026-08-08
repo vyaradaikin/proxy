@@ -1,0 +1,83 @@
+---
+monitoring_server_enabled: true
+monitoring_server_hosts: non_ru
+monitoring_apt_cache_valid_time: 3600
+
+monitoring_prometheus_port: 19090
+monitoring_prometheus_listen_address: "127.0.0.1"
+monitoring_prometheus_config_path: /etc/prometheus/prometheus.yml
+monitoring_prometheus_rules_path: /etc/prometheus/proxy-alerts.yml
+monitoring_prometheus_retention_time: 7d
+monitoring_prometheus_scrape_interval: 30s
+monitoring_prometheus_evaluation_interval: 30s
+
+monitoring_alertmanager_port: 19093
+monitoring_alertmanager_listen_address: "127.0.0.1"
+monitoring_alertmanager_cluster_listen_address: ""
+monitoring_alertmanager_config_path: /etc/prometheus/alertmanager.yml
+monitoring_alertmanager_group_wait: 30s
+monitoring_alertmanager_group_interval: 5m
+monitoring_alertmanager_repeat_interval: 4h
+
+monitoring_blackbox_port: 19115
+monitoring_blackbox_listen_address: "127.0.0.1"
+monitoring_blackbox_config_path: /etc/prometheus/blackbox.yml
+
+monitoring_ui_enabled: true
+monitoring_ui_port: 19094
+monitoring_ui_listen_address: "127.0.0.1"
+monitoring_ui_service_name: proxy-monitoring-ui
+monitoring_ui_path: /usr/local/bin/proxy-monitoring-ui
+monitoring_ui_root: /opt/proxy-monitoring-ui
+monitoring_ui_index_path: /opt/proxy-monitoring-ui/index.html
+monitoring_ui_env_path: /etc/default/proxy-monitoring-ui
+
+monitoring_public_enabled: false
+monitoring_public_domain: ""
+monitoring_public_tls_enabled: true
+monitoring_public_letsencrypt_email: ""
+monitoring_public_basic_auth_user: admin
+monitoring_public_basic_auth_password: ""
+monitoring_public_htpasswd_path: /etc/nginx/proxy-monitoring.htpasswd
+monitoring_public_acme_root: /var/www/letsencrypt
+monitoring_public_nginx_site_path: /etc/nginx/sites-available/proxy-monitoring.conf
+monitoring_public_nginx_site_link: /etc/nginx/sites-enabled/proxy-monitoring.conf
+
+monitoring_node_exporter_port: 9100
+monitoring_node_targets:
+  - name: ru
+    address: "{{ wg_ru_ip }}:{{ monitoring_node_exporter_port }}"
+  - name: non_ru
+    address: "{{ wg_non_ru_ip }}:{{ monitoring_node_exporter_port }}"
+
+monitoring_blackbox_tcp_targets:
+  - name: xray_ru
+    address: "{{ ru_public_ip }}:{{ xray_port }}"
+  - name: wg_speedtest_ru
+    address: "{{ wg_ru_ip }}:{{ wg_speedtest_port }}"
+  - name: wg_speedtest_non_ru
+    address: "{{ wg_non_ru_ip }}:{{ wg_speedtest_port }}"
+
+monitoring_blackbox_icmp_targets:
+  - name: wg_ru
+    address: "{{ wg_ru_ip }}"
+  - name: wg_non_ru
+    address: "{{ wg_non_ru_ip }}"
+
+monitoring_alert_cpu_load_per_core: 0.9
+monitoring_alert_memory_available_ratio: 0.1
+monitoring_alert_disk_free_ratio: 0.1
+monitoring_alert_wg_handshake_age_seconds: 180
+monitoring_alert_speedtest_min_bps: 3000000
+monitoring_alert_speedtest_max_age_seconds: 28800
+
+monitoring_telegram_enabled: false
+monitoring_telegram_bot_token: ""
+monitoring_telegram_chat_id: ""
+monitoring_telegram_api_url: https://api.telegram.org
+monitoring_telegram_parse_mode: HTML
+monitoring_telegram_relay_host: 127.0.0.1
+monitoring_telegram_relay_port: 9087
+monitoring_telegram_relay_path: /usr/local/bin/alertmanager-telegram-relay
+monitoring_telegram_relay_env_path: /etc/default/alertmanager-telegram-relay
+monitoring_telegram_relay_service_name: alertmanager-telegram-relay

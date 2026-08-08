@@ -12,3 +12,9 @@ all:
       hosts:
         non-ru-exit:
           ansible_host: 198.51.100.10
+    # Optional dedicated monitoring VM. If enabled, set
+    # monitoring_server_hosts: monitoring in local.yml.
+    # monitoring:
+    #   hosts:
+    #     monitoring:
+    #       ansible_host: 192.0.2.20

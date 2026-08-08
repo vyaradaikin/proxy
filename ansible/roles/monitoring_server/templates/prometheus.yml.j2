@@ -1,0 +1,71 @@
+global:
+  scrape_interval: {{ monitoring_prometheus_scrape_interval }}
+  evaluation_interval: {{ monitoring_prometheus_evaluation_interval }}
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - {{ monitoring_alertmanager_listen_address }}:{{ monitoring_alertmanager_port }}
+
+rule_files:
+  - {{ monitoring_prometheus_rules_path }}
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - {{ monitoring_prometheus_listen_address }}:{{ monitoring_prometheus_port }}
+
+  - job_name: node
+    static_configs:
+{% for target in monitoring_node_targets %}
+      - targets:
+          - {{ target.address }}
+        labels:
+          instance: {{ target.name }}
+{% endfor %}
+
+  - job_name: blackbox_tcp
+    metrics_path: /probe
+    params:
+      module:
+        - tcp_connect
+    static_configs:
+{% for target in monitoring_blackbox_tcp_targets %}
+      - targets:
+          - {{ target.address }}
+        labels:
+          instance: {{ target.name }}
+{% endfor %}
+    relabel_configs:
+      - source_labels:
+          - __address__
+        target_label: __param_target
+      - source_labels:
+          - __param_target
+        target_label: target
+      - target_label: __address__
+        replacement: {{ monitoring_blackbox_listen_address }}:{{ monitoring_blackbox_port }}
+
+  - job_name: blackbox_icmp
+    metrics_path: /probe
+    params:
+      module:
+        - icmp
+    static_configs:
+{% for target in monitoring_blackbox_icmp_targets %}
+      - targets:
+          - {{ target.address }}
+        labels:
+          instance: {{ target.name }}
+{% endfor %}
+    relabel_configs:
+      - source_labels:
+          - __address__
+        target_label: __param_target
+      - source_labels:
+          - __param_target
+        target_label: target
+      - target_label: __address__
+        replacement: {{ monitoring_blackbox_listen_address }}:{{ monitoring_blackbox_port }}

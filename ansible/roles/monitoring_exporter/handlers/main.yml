@@ -1,0 +1,21 @@
+---
+- name: Restart node exporter
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Restart WireGuard metrics timer
+  ansible.builtin.systemd:
+    name: proxy-wg-metrics.timer
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Restart WireGuard speedtest metrics timer
+  ansible.builtin.systemd:
+    name: proxy-wg-speedtest-metrics.timer
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode

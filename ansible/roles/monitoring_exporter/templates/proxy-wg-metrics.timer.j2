@@ -1,0 +1,10 @@
+[Unit]
+Description=Collect WireGuard textfile metrics periodically
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ monitoring_wg_metrics_interval }}s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

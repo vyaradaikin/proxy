@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proxy Monitoring</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #637083;
+      --border: #d8dee7;
+      --ok: #147d4f;
+      --warn: #9a5b00;
+      --bad: #b42318;
+      --accent: #195eb8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101418;
+        --panel: #171d23;
+        --text: #eef2f6;
+        --muted: #a8b2bf;
+        --border: #303946;
+        --ok: #45c486;
+        --warn: #e5a93d;
+        --bad: #ff6b62;
+        --accent: #7db1ff;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      backdrop-filter: blur(10px);
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 18px; }
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    h2 { margin: 26px 0 12px; font-size: 16px; }
+    .meta { color: var(--muted); font-size: 13px; }
+    button {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 12px; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 14px;
+      min-width: 0;
+    }
+    .card h3 { margin: 0 0 10px; font-size: 15px; }
+    .rows { display: grid; gap: 8px; }
+    .row {
+      display: grid;
+      grid-template-columns: minmax(90px, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+      min-width: 0;
+    }
+    .row:first-child { border-top: 0; padding-top: 0; }
+    .name { min-width: 0; overflow-wrap: anywhere; }
+    .value { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+    .query { margin-top: 10px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; overflow-wrap: anywhere; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 650;
+      border: 1px solid var(--border);
+    }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .empty { color: var(--muted); }
+    .bar { height: 7px; border-radius: 999px; background: color-mix(in srgb, var(--border) 75%, transparent); overflow: hidden; margin-top: 6px; }
+    .bar span { display: block; height: 100%; background: var(--accent); min-width: 1px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap top">
+      <div>
+        <h1>Proxy Monitoring</h1>
+        <div class="meta" id="status">Loading metrics...</div>
+      </div>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+  </header>
+  <main class="wrap">
+    <section>
+      <h2>Targets</h2>
+      <div class="grid" id="targets"></div>
+    </section>
+    <section>
+      <h2>Active Alerts</h2>
+      <div class="grid" id="alerts"></div>
+    </section>
+    <section>
+      <h2>Alert Metrics</h2>
+      <div class="grid" id="metrics"></div>
+    </section>
+  </main>
+  <script>
+    const thresholds = {
+      cpuLoadPerCore: {{ monitoring_alert_cpu_load_per_core }},
+      memoryAvailableRatio: {{ monitoring_alert_memory_available_ratio }},
+      diskFreeRatio: {{ monitoring_alert_disk_free_ratio }},
+      wgHandshakeAgeSeconds: {{ monitoring_alert_wg_handshake_age_seconds }},
+      speedtestMinBps: {{ monitoring_alert_speedtest_min_bps }},
+      speedtestMaxAgeSeconds: {{ monitoring_alert_speedtest_max_age_seconds }}
+    };
+
+    const checks = [
+      {
+        title: "Node exporter up",
+        query: 'up{job="node"}',
+        ok: value => Number(value) === 1,
+        format: value => Number(value) === 1 ? "up" : "down"
+      },
+      {
+        title: "CPU load per core",
+        query: 'node_load1 / count without(cpu, mode) (node_cpu_seconds_total{mode="idle"})',
+        ok: value => Number(value) <= thresholds.cpuLoadPerCore,
+        format: value => Number(value).toFixed(2),
+        threshold: "<= " + thresholds.cpuLoadPerCore
+      },
+      {
+        title: "Memory available",
+        query: 'node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes',
+        ok: value => Number(value) >= thresholds.memoryAvailableRatio,
+        format: value => percent(value),
+        threshold: ">= " + percent(thresholds.memoryAvailableRatio)
+      },
+      {
+        title: "Root disk free",
+        query: 'node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}',
+        ok: value => Number(value) >= thresholds.diskFreeRatio,
+        format: value => percent(value),
+        threshold: ">= " + percent(thresholds.diskFreeRatio)
+      },
+      {
+        title: "WireGuard handshake age",
+        query: 'proxy_wireguard_seconds_since_handshake',
+        ok: value => Number(value) <= thresholds.wgHandshakeAgeSeconds,
+        format: value => seconds(value),
+        threshold: "<= " + seconds(thresholds.wgHandshakeAgeSeconds)
+      },
+      {
+        title: "WireGuard peer ping",
+        query: 'proxy_wireguard_ping_up',
+        ok: value => Number(value) === 1,
+        format: value => Number(value) === 1 ? "up" : "down"
+      },
+      {
+        title: "WireGuard speedtest status",
+        query: 'proxy_wireguard_speedtest_up',
+        ok: value => Number(value) === 1,
+        format: value => Number(value) === 1 ? "ok" : "failed"
+      },
+      {
+        title: "WireGuard speedtest age",
+        query: 'time() - proxy_wireguard_speedtest_last_success_unixtime',
+        ok: value => Number(value) <= thresholds.speedtestMaxAgeSeconds,
+        format: value => seconds(value),
+        threshold: "<= " + seconds(thresholds.speedtestMaxAgeSeconds)
+      },
+      {
+        title: "WireGuard speed",
+        query: 'proxy_wireguard_speedtest_bits_per_second',
+        ok: value => Number(value) >= thresholds.speedtestMinBps,
+        format: value => bitrate(value),
+        threshold: ">= " + bitrate(thresholds.speedtestMinBps)
+      },
+      {
+        title: "Blackbox probe success",
+        query: 'probe_success',
+        ok: value => Number(value) === 1,
+        format: value => Number(value) === 1 ? "up" : "down"
+      }
+    ];
+
+    document.getElementById("refresh").addEventListener("click", refresh);
+    refresh();
+    setInterval(refresh, 30000);
+
+    async function refresh() {
+      setStatus("Refreshing...");
+      try {
+        const [targets, alerts] = await Promise.all([getTargets(), getAlerts()]);
+        renderTargets(targets);
+        renderAlerts(alerts);
+        await renderMetrics();
+        setStatus("Updated " + new Date().toLocaleTimeString());
+      } catch (error) {
+        setStatus("Error: " + error.message, "bad");
+      }
+    }
+
+    async function api(path) {
+      const response = await fetch("/prometheus" + path, { cache: "no-store" });
+      if (!response.ok) throw new Error(response.status + " " + response.statusText);
+      const payload = await response.json();
+      if (payload.status !== "success") throw new Error(payload.error || "Prometheus API error");
+      return payload.data;
+    }
+
+    async function query(promql) {
+      return api("/api/v1/query?query=" + encodeURIComponent(promql));
+    }
+
+    async function getTargets() {
+      return api("/api/v1/targets");
+    }
+
+    async function getAlerts() {
+      return api("/api/v1/alerts");
+    }
+
+    function renderTargets(data) {
+      const cards = groupBy(data.activeTargets || [], item => item.labels.job || "unknown");
+      const root = document.getElementById("targets");
+      root.innerHTML = "";
+      Object.keys(cards).sort().forEach(job => {
+        root.append(card(job, cards[job].map(target => {
+          const health = target.health || "unknown";
+          return row(target.labels.instance || target.scrapeUrl, badge(health, health === "up"), target.lastError || target.scrapeUrl);
+        }).join("")));
+      });
+    }
+
+    function renderAlerts(data) {
+      const alerts = data.alerts || [];
+      const root = document.getElementById("alerts");
+      root.innerHTML = "";
+      if (alerts.length === 0) {
+        root.append(card("No active alerts", '<div class="empty">Everything is quiet.</div>'));
+        return;
+      }
+      alerts.forEach(alert => {
+        const labels = alert.labels || {};
+        const annotations = alert.annotations || {};
+        const title = labels.alertname + (labels.instance ? " / " + labels.instance : "");
+        root.append(card(title, row("state", badge(alert.state, alert.state !== "firing"), annotations.summary || "")));
+      });
+    }
+
+    async function renderMetrics() {
+      const root = document.getElementById("metrics");
+      root.innerHTML = "";
+      for (const check of checks) {
+        const result = await query(check.query);
+        const values = result.result || [];
+        const body = values.length ? values.map(item => {
+          const labels = item.metric || {};
+          const label = labels.instance || labels.peer || labels.target || labels.direction || labels.job || "value";
+          const value = item.value[1];
+          const ok = check.ok(value);
+          const detail = [labels.peer, labels.direction, labels.mountpoint].filter(Boolean).join(" / ");
+          return row(label, badge(check.format(value), ok), detail);
+        }).join("") : '<div class="empty">No series returned.</div>';
+        const threshold = check.threshold ? '<div class="meta">Alert threshold: ' + escapeHtml(check.threshold) + '</div>' : "";
+        root.append(card(check.title, body + threshold + '<div class="query">' + escapeHtml(check.query) + '</div>'));
+      }
+    }
+
+    function card(title, body) {
+      const element = document.createElement("div");
+      element.className = "card";
+      element.innerHTML = "<h3>" + escapeHtml(title) + "</h3><div class=\"rows\">" + body + "</div>";
+      return element;
+    }
+
+    function row(name, value, note) {
+      const noteHtml = note ? '<div class="meta">' + escapeHtml(note) + '</div>' : "";
+      return '<div class="row"><div class="name">' + escapeHtml(name) + noteHtml + '</div><div class="value">' + value + '</div></div>';
+    }
+
+    function badge(text, ok) {
+      return '<span class="pill ' + (ok ? "ok" : "bad") + '">' + escapeHtml(text) + '</span>';
+    }
+
+    function groupBy(items, getKey) {
+      return items.reduce((acc, item) => {
+        const key = getKey(item);
+        acc[key] = acc[key] || [];
+        acc[key].push(item);
+        return acc;
+      }, {});
+    }
+
+    function percent(value) {
+      return (Number(value) * 100).toFixed(1) + "%";
+    }
+
+    function seconds(value) {
+      const n = Number(value);
+      if (n < 60) return Math.round(n) + "s";
+      if (n < 3600) return Math.round(n / 60) + "m";
+      return (n / 3600).toFixed(1) + "h";
+    }
+
+    function bitrate(value) {
+      const n = Number(value);
+      if (n >= 1000000000) return (n / 1000000000).toFixed(2) + " Gbps";
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + " Mbps";
+      if (n >= 1000) return (n / 1000).toFixed(1) + " Kbps";
+      return Math.round(n) + " bps";
+    }
+
+    function setStatus(text, cls) {
+      const element = document.getElementById("status");
+      element.textContent = text;
+      element.className = "meta " + (cls || "");
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+  </script>
+</body>
+</html>

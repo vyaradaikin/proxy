@@ -1,0 +1,7 @@
+[Unit]
+Description=Collect WireGuard textfile metrics
+After=wg-quick@{{ wg_interface }}.service
+
+[Service]
+Type=oneshot
+ExecStart={{ monitoring_wg_metrics_script_path }}

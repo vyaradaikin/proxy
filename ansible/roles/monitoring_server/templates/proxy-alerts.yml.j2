@@ -1,0 +1,96 @@
+groups:
+  - name: proxy-node
+    rules:
+      - alert: ProxyInstanceDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node exporter is down on {{ "{{" }} $labels.instance {{ "}}" }}"
+          description: "Prometheus cannot scrape node_exporter."
+
+      - alert: ProxyHighCpuLoad
+        expr: (node_load1 / count without(cpu, mode) (node_cpu_seconds_total{mode="idle"})) > {{ monitoring_alert_cpu_load_per_core }}
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU load on {{ "{{" }} $labels.instance {{ "}}" }}"
+          description: "1-minute load is high for the available CPU count."
+
+      - alert: ProxyLowMemory
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < {{ monitoring_alert_memory_available_ratio }}
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low memory on {{ "{{" }} $labels.instance {{ "}}" }}"
+          description: "Available memory is below the configured threshold."
+
+      - alert: ProxyLowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) < {{ monitoring_alert_disk_free_ratio }}
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ "{{" }} $labels.instance {{ "}}" }}"
+          description: "Root filesystem free space is below threshold."
+
+  - name: proxy-wireguard
+    rules:
+      - alert: ProxyWireGuardHandshakeStale
+        expr: proxy_wireguard_seconds_since_handshake > {{ monitoring_alert_wg_handshake_age_seconds }}
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WireGuard handshake is stale on {{ "{{" }} $labels.instance {{ "}}" }}"
+          description: "No fresh WireGuard handshake for {{ "{{" }} $value {{ "}}" }} seconds."
+
+      - alert: ProxyWireGuardPingDown
+        expr: proxy_wireguard_ping_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WireGuard peer ping failed on {{ "{{" }} $labels.instance {{ "}}" }}"
+          description: "Peer {{ "{{" }} $labels.peer {{ "}}" }} does not respond over the tunnel."
+
+      - alert: ProxyWireGuardSpeedtestFailed
+        expr: proxy_wireguard_speedtest_up == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WireGuard speedtest failed on {{ "{{" }} $labels.instance {{ "}}" }}"
+          description: "The periodic iperf3 speedtest did not complete successfully."
+
+      - alert: ProxyWireGuardSpeedtestStale
+        expr: (time() - proxy_wireguard_speedtest_last_success_unixtime) > {{ monitoring_alert_speedtest_max_age_seconds }}
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WireGuard speedtest metrics are stale"
+          description: "No successful speedtest within the configured freshness window."
+
+      - alert: ProxyWireGuardSpeedLow
+        expr: proxy_wireguard_speedtest_bits_per_second < {{ monitoring_alert_speedtest_min_bps }}
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WireGuard speed is low"
+          description: "Speedtest {{ "{{" }} $labels.direction {{ "}}" }} is {{ "{{" }} $value {{ "}}" }} bps."
+
+  - name: proxy-blackbox
+    rules:
+      - alert: ProxyBlackboxProbeFailed
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Probe failed for {{ "{{" }} $labels.instance {{ "}}" }}"
+          description: "Blackbox probe to {{ "{{" }} $labels.target {{ "}}" }} failed."

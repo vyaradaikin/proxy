@@ -1,0 +1,403 @@
+---
+- name: Validate monitoring server variables
+  ansible.builtin.assert:
+    that:
+      - monitoring_prometheus_config_path is defined
+      - monitoring_prometheus_rules_path is defined
+      - monitoring_node_targets is defined
+      - monitoring_blackbox_tcp_targets is defined
+      - monitoring_blackbox_icmp_targets is defined
+    fail_msg: "Missing monitoring server variables"
+
+- name: Validate Telegram variables
+  ansible.builtin.assert:
+    that:
+      - monitoring_telegram_bot_token | length > 0
+      - monitoring_telegram_chat_id | string | length > 0
+    fail_msg: "Set monitoring_telegram_bot_token and monitoring_telegram_chat_id"
+  when: monitoring_telegram_enabled | bool
+
+- name: Validate public monitoring variables
+  ansible.builtin.assert:
+    that:
+      - monitoring_public_domain | length > 0
+      - monitoring_public_basic_auth_user | length > 0
+      - monitoring_public_basic_auth_password | length > 0
+      - not monitoring_public_tls_enabled | bool or monitoring_public_letsencrypt_email | length > 0
+    fail_msg: "Set monitoring_public_domain, monitoring_public_basic_auth_user, monitoring_public_basic_auth_password, and monitoring_public_letsencrypt_email when TLS is enabled"
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+
+- name: Install monitoring server packages
+  ansible.builtin.apt:
+    name:
+      - prometheus
+      - prometheus-alertmanager
+      - prometheus-blackbox-exporter
+      - python3
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ monitoring_apt_cache_valid_time }}"
+    install_recommends: false
+  when: monitoring_server_enabled | bool
+
+- name: Install public monitoring packages
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - apache2-utils
+      - certbot
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ monitoring_apt_cache_valid_time }}"
+    install_recommends: false
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+
+- name: Configure prometheus defaults
+  ansible.builtin.template:
+    src: prometheus.default.j2
+    dest: /etc/default/prometheus
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart prometheus
+  when: monitoring_server_enabled | bool
+
+- name: Configure alertmanager defaults
+  ansible.builtin.template:
+    src: prometheus-alertmanager.default.j2
+    dest: /etc/default/prometheus-alertmanager
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart alertmanager
+  when: monitoring_server_enabled | bool
+
+- name: Configure blackbox exporter defaults
+  ansible.builtin.template:
+    src: prometheus-blackbox-exporter.default.j2
+    dest: /etc/default/prometheus-blackbox-exporter
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart blackbox exporter
+  when: monitoring_server_enabled | bool
+
+- name: Write prometheus config
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_prometheus_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart prometheus
+  when: monitoring_server_enabled | bool
+
+- name: Write prometheus alert rules
+  ansible.builtin.template:
+    src: proxy-alerts.yml.j2
+    dest: "{{ monitoring_prometheus_rules_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart prometheus
+  when: monitoring_server_enabled | bool
+
+- name: Write blackbox exporter config
+  ansible.builtin.template:
+    src: blackbox.yml.j2
+    dest: "{{ monitoring_blackbox_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart blackbox exporter
+  when: monitoring_server_enabled | bool
+
+- name: Write alertmanager config
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: "{{ monitoring_alertmanager_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/amtool check-config %s
+  notify: Restart alertmanager
+  when: monitoring_server_enabled | bool
+
+- name: Write Telegram relay script
+  ansible.builtin.template:
+    src: alertmanager-telegram-relay.py.j2
+    dest: "{{ monitoring_telegram_relay_path }}"
+    owner: root
+    group: root
+    mode: "0750"
+  notify: Restart telegram relay
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_telegram_enabled | bool
+
+- name: Write Telegram relay service
+  ansible.builtin.template:
+    src: alertmanager-telegram-relay.service.j2
+    dest: "/etc/systemd/system/{{ monitoring_telegram_relay_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart telegram relay
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_telegram_enabled | bool
+
+- name: Write Telegram relay environment
+  ansible.builtin.template:
+    src: alertmanager-telegram-relay.default.j2
+    dest: "{{ monitoring_telegram_relay_env_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart telegram relay
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_telegram_enabled | bool
+
+- name: Ensure monitoring UI directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_ui_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_ui_enabled | bool
+
+- name: Write monitoring UI server
+  ansible.builtin.template:
+    src: proxy-monitoring-ui.py.j2
+    dest: "{{ monitoring_ui_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart monitoring UI
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_ui_enabled | bool
+
+- name: Write monitoring UI page
+  ansible.builtin.template:
+    src: proxy-monitoring-ui.html.j2
+    dest: "{{ monitoring_ui_index_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart monitoring UI
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_ui_enabled | bool
+
+- name: Write monitoring UI defaults
+  ansible.builtin.template:
+    src: proxy-monitoring-ui.default.j2
+    dest: "{{ monitoring_ui_env_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart monitoring UI
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_ui_enabled | bool
+
+- name: Write monitoring UI service
+  ansible.builtin.template:
+    src: proxy-monitoring-ui.service.j2
+    dest: "/etc/systemd/system/{{ monitoring_ui_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart monitoring UI
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_ui_enabled | bool
+
+- name: Ensure public monitoring ACME directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_public_acme_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+
+- name: Check public monitoring certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ monitoring_public_domain }}/fullchain.pem"
+  register: monitoring_public_certificate
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+
+- name: Write public monitoring htpasswd
+  ansible.builtin.command:
+    cmd: >-
+      htpasswd -Bbc {{ monitoring_public_htpasswd_path }}
+      {{ monitoring_public_basic_auth_user }}
+      {{ monitoring_public_basic_auth_password }}
+    creates: "{{ monitoring_public_htpasswd_path }}"
+  no_log: true
+  notify: Reload nginx
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+    - not ansible_check_mode
+
+- name: Write public monitoring nginx site
+  ansible.builtin.template:
+    src: proxy-monitoring-nginx.conf.j2
+    dest: "{{ monitoring_public_nginx_site_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  vars:
+    monitoring_public_certificate_exists: "{{ monitoring_public_certificate.stat.exists | default(false) }}"
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+
+- name: Enable public monitoring nginx site
+  ansible.builtin.file:
+    src: "{{ monitoring_public_nginx_site_path }}"
+    dest: "{{ monitoring_public_nginx_site_link }}"
+    state: link
+    force: true
+  notify: Reload nginx
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+
+- name: Test public monitoring nginx config
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+    - not ansible_check_mode
+
+- name: Enable nginx
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: true
+    state: started
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+    - not ansible_check_mode
+
+- name: Reload nginx before ACME challenge
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+    - monitoring_public_tls_enabled | bool
+    - not monitoring_public_certificate.stat.exists | default(false)
+    - not ansible_check_mode
+
+- name: Obtain public monitoring certificate
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly --webroot
+      --webroot-path {{ monitoring_public_acme_root }}
+      --domain {{ monitoring_public_domain }}
+      --email {{ monitoring_public_letsencrypt_email }}
+      --agree-tos
+      --non-interactive
+      --keep-until-expiring
+  register: monitoring_public_certbot
+  changed_when: "'Certificate not yet due for renewal' not in monitoring_public_certbot.stdout"
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+    - monitoring_public_tls_enabled | bool
+    - not monitoring_public_certificate.stat.exists | default(false)
+    - not ansible_check_mode
+
+- name: Re-check public monitoring certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ monitoring_public_domain }}/fullchain.pem"
+  register: monitoring_public_certificate
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+    - monitoring_public_tls_enabled | bool
+
+- name: Re-render public monitoring nginx site with TLS
+  ansible.builtin.template:
+    src: proxy-monitoring-nginx.conf.j2
+    dest: "{{ monitoring_public_nginx_site_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  vars:
+    monitoring_public_certificate_exists: "{{ monitoring_public_certificate.stat.exists | default(false) }}"
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+    - monitoring_public_tls_enabled | bool
+    - monitoring_public_certificate.stat.exists | default(false)
+
+- name: Test public monitoring nginx TLS config
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_public_enabled | bool
+    - monitoring_public_tls_enabled | bool
+    - monitoring_public_certificate.stat.exists | default(false)
+    - not ansible_check_mode
+
+- name: Enable monitoring services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - prometheus
+    - prometheus-alertmanager
+    - prometheus-blackbox-exporter
+  when:
+    - monitoring_server_enabled | bool
+    - not ansible_check_mode
+
+- name: Enable Telegram relay
+  ansible.builtin.systemd:
+    name: "{{ monitoring_telegram_relay_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_telegram_enabled | bool
+    - not ansible_check_mode
+
+- name: Enable monitoring UI
+  ansible.builtin.systemd:
+    name: "{{ monitoring_ui_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - monitoring_server_enabled | bool
+    - monitoring_ui_enabled | bool
+    - not ansible_check_mode

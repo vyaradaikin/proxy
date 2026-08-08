@@ -1,0 +1,22 @@
+---
+monitoring_exporter_enabled: true
+monitoring_apt_cache_valid_time: 3600
+monitoring_node_exporter_port: 9100
+monitoring_node_exporter_listen_address: "0.0.0.0"
+monitoring_node_exporter_textfile_dir: /var/lib/prometheus/node-exporter
+monitoring_node_exporter_options_path: /etc/default/prometheus-node-exporter
+
+monitoring_wg_metrics_enabled: true
+monitoring_wg_metrics_script_path: /usr/local/sbin/proxy-wg-metrics
+monitoring_wg_metrics_interval: 60
+monitoring_wg_ping_count: 3
+monitoring_wg_ping_timeout: 2
+
+monitoring_speedtest_metrics_enabled: true
+monitoring_speedtest_run_on_all_hosts: false
+monitoring_speedtest_script_path: /usr/local/sbin/proxy-wg-speedtest-metrics
+monitoring_speedtest_interval: 6h
+monitoring_speedtest_timeout: 90
+monitoring_speedtest_duration: "{{ wg_speedtest_duration | default(10) }}"
+monitoring_speedtest_parallel: "{{ wg_speedtest_parallel | default(1) }}"
+monitoring_speedtest_port: "{{ wg_speedtest_port | default(5201) }}"

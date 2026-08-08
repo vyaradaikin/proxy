@@ -197,6 +197,143 @@ wg_speedtest_parallel: 1
 wg_speedtest_reverse: true
 ```
 
+## Optional Monitoring
+
+The monitoring stack is intentionally lightweight and can run either on the
+Non-RU node or on a separate VM:
+
+- `prometheus-node-exporter` on RU and Non-RU for CPU, RAM, disk, load, and
+  textfile metrics.
+- custom WireGuard textfile metrics for handshake age, transfer counters, and
+  tunnel ping.
+- periodic iperf3 speedtest metrics through WireGuard.
+- Prometheus for scraping and alert evaluation.
+- blackbox_exporter for TCP/ICMP probes.
+- Alertmanager plus a small Telegram webhook relay for notifications.
+
+On a small `1 vCPU / 1 GiB RAM` Non-RU node this fits only if you keep the stack
+minimal: do not install Grafana by default, keep Prometheus retention short, and
+bind services to localhost/WireGuard addresses. If the node already runs other
+containers or browsers, a dedicated monitoring VM is cleaner.
+
+Enable monitoring on the Non-RU node:
+
+```yaml
+monitoring_server_hosts: non_ru
+monitoring_server_enabled: true
+monitoring_exporter_enabled: true
+monitoring_telegram_enabled: true
+```
+
+Put Telegram secrets into `ansible/group_vars/all/vault.yml`, not into
+`local.yml`:
+
+```yaml
+monitoring_telegram_bot_token: "CHANGEME"
+monitoring_telegram_chat_id: "CHANGEME"
+```
+
+To use a dedicated monitoring VM, add a `monitoring` group to inventory and set:
+
+```yaml
+monitoring_server_hosts: monitoring
+monitoring_scrape_source_ips:
+  - 198.51.100.20
+```
+
+`monitoring_scrape_source_ips` should contain the IP address that RU/Non-RU see
+as the source of Prometheus requests. For a standalone public VM this is usually
+the VM public IPv4 address. For a private monitoring peer, use its WireGuard IP.
+
+If the dedicated monitoring VM is not a WireGuard peer, scrape node exporters via
+public server IPs and keep access restricted with `monitoring_scrape_source_ips`:
+
+```yaml
+monitoring_node_targets:
+  - name: ru
+    address: "{{ ru_public_ip }}:{{ monitoring_node_exporter_port }}"
+  - name: non_ru
+    address: "{{ non_ru_public_ip }}:{{ monitoring_node_exporter_port }}"
+monitoring_blackbox_tcp_targets:
+  - name: xray_ru
+    address: "{{ ru_public_ip }}:{{ xray_port }}"
+monitoring_blackbox_icmp_targets: []
+```
+
+WireGuard tunnel state is still monitored through node_exporter textfile metrics
+generated locally on RU and Non-RU. To run blackbox probes against WireGuard IPs
+from a dedicated VM, add that VM as a restricted WireGuard peer instead.
+
+The default monitoring server ports are project-specific to avoid conflicts with
+existing services:
+
+```yaml
+monitoring_prometheus_port: 19090
+monitoring_alertmanager_port: 19093
+monitoring_blackbox_port: 19115
+monitoring_ui_port: 19094
+```
+
+The built-in monitoring UI shows all Prometheus series used by alert rules:
+node availability, CPU load, RAM, root disk, WireGuard handshake/ping/speedtest,
+and blackbox probe status. It is bound to localhost by default. Open it through
+an SSH tunnel:
+
+```bash
+ssh -L 19094:127.0.0.1:19094 monitoring01
+```
+
+Then browse to `http://127.0.0.1:19094`.
+
+To expose the UI through a public domain, enable the Nginx reverse proxy:
+
+```yaml
+monitoring_public_enabled: true
+monitoring_public_domain: monitoring.example.com
+monitoring_public_letsencrypt_email: admin@example.com
+monitoring_public_basic_auth_user: admin
+```
+
+Store the Basic Auth password in vault:
+
+```yaml
+monitoring_public_basic_auth_password: "CHANGEME"
+```
+
+The role keeps the UI and Prometheus bound to localhost, exposes only Nginx,
+uses HTTP-01 through `monitoring_public_acme_root`, then redirects HTTP to HTTPS
+after the Let's Encrypt certificate is issued.
+
+Apply:
+
+```bash
+make plan-monitoring
+make apply-monitoring
+```
+
+Telegram parameters:
+
+- `monitoring_telegram_enabled`: enable Alertmanager Telegram notifications;
+  this can live in `local.yml`.
+- `monitoring_telegram_bot_token`: bot token from `@BotFather`; store it in
+  vault.
+- `monitoring_telegram_chat_id`: target user, group, or channel chat ID; store
+  it in vault if you do not want the chat ID public.
+- `monitoring_telegram_api_url`: Telegram API URL, default
+  `https://api.telegram.org`.
+- `monitoring_telegram_parse_mode`: default `HTML`.
+
+Recommended extra checks for a fuller setup:
+
+- Xray process health and accepted connection rate.
+- TLS/Reality TCP probe from outside the servers.
+- DNS resolver health on RU and Non-RU.
+- apt security update freshness.
+- systemd failed units.
+- log-based alerts for repeated Xray or udp2raw errors.
+- Prometheus remote_write or backups if metrics history matters.
+- Grafana on a separate monitoring VM if dashboards are needed.
+
 Verification:
 
 ```bash

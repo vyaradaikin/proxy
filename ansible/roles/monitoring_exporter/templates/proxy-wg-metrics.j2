@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+
+out="{{ monitoring_node_exporter_textfile_dir }}/proxy_wireguard.prom"
+tmp="${out}.$$"
+now="$(date +%s)"
+handshake="$(wg show {{ wg_interface }} latest-handshakes | awk 'NR == 1 { print $2 }')"
+transfer="$(wg show {{ wg_interface }} transfer | awk 'NR == 1 { print $2 " " $3 }')"
+rx_bytes="$(printf '%s\n' "${transfer}" | awk '{ print $1 + 0 }')"
+tx_bytes="$(printf '%s\n' "${transfer}" | awk '{ print $2 + 0 }')"
+
+if [ "${handshake:-0}" -gt 0 ]; then
+  age="$((now - handshake))"
+else
+  age="999999"
+fi
+
+if ping -I {{ wg_interface }} -c {{ monitoring_wg_ping_count }} -W {{ monitoring_wg_ping_timeout }} {{ monitoring_wg_peer_ip }} >/dev/null 2>&1; then
+  ping_up="1"
+else
+  ping_up="0"
+fi
+
+cat >"${tmp}" <<EOF
+# HELP proxy_wireguard_latest_handshake_unixtime Last WireGuard handshake Unix timestamp.
+# TYPE proxy_wireguard_latest_handshake_unixtime gauge
+proxy_wireguard_latest_handshake_unixtime{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}"} ${handshake:-0}
+# HELP proxy_wireguard_seconds_since_handshake Seconds since last WireGuard handshake.
+# TYPE proxy_wireguard_seconds_since_handshake gauge
+proxy_wireguard_seconds_since_handshake{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}"} ${age}
+# HELP proxy_wireguard_received_bytes WireGuard peer received bytes.
+# TYPE proxy_wireguard_received_bytes counter
+proxy_wireguard_received_bytes{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}"} ${rx_bytes}
+# HELP proxy_wireguard_transmitted_bytes WireGuard peer transmitted bytes.
+# TYPE proxy_wireguard_transmitted_bytes counter
+proxy_wireguard_transmitted_bytes{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}"} ${tx_bytes}
+# HELP proxy_wireguard_ping_up Whether WireGuard peer IP responds to ping.
+# TYPE proxy_wireguard_ping_up gauge
+proxy_wireguard_ping_up{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}"} ${ping_up}
+EOF
+
+chown prometheus:prometheus "${tmp}"
+mv "${tmp}" "${out}"

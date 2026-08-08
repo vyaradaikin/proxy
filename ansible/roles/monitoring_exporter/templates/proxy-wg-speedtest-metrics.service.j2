@@ -1,0 +1,7 @@
+[Unit]
+Description=Collect WireGuard iperf3 speedtest metrics
+After=wg-quick@{{ wg_interface }}.service {{ wg_speedtest_service_name | default('iperf3-wg-server') }}.service
+
+[Service]
+Type=oneshot
+ExecStart={{ monitoring_speedtest_script_path }}

@@ -12,3 +12,7 @@ xray_client_id: CHANGEME-UUID
 xray_reality_private_key: CHANGEME
 xray_reality_public_key: CHANGEME
 xray_short_id: CHANGEME
+
+monitoring_telegram_bot_token: CHANGEME
+monitoring_telegram_chat_id: CHANGEME
+monitoring_public_basic_auth_password: CHANGEME

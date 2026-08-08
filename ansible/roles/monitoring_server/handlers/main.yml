@@ -1,0 +1,47 @@
+---
+- name: Restart prometheus
+  ansible.builtin.systemd:
+    name: prometheus
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Restart alertmanager
+  ansible.builtin.systemd:
+    name: prometheus-alertmanager
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Restart blackbox exporter
+  ansible.builtin.systemd:
+    name: prometheus-blackbox-exporter
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Restart telegram relay
+  ansible.builtin.systemd:
+    name: "{{ monitoring_telegram_relay_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when:
+    - monitoring_telegram_enabled | bool
+    - not ansible_check_mode
+
+- name: Restart monitoring UI
+  ansible.builtin.systemd:
+    name: "{{ monitoring_ui_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when:
+    - monitoring_ui_enabled | bool
+    - not ansible_check_mode
+
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  when:
+    - monitoring_public_enabled | bool
+    - not ansible_check_mode

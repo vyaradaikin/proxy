@@ -1,0 +1,54 @@
+#!/bin/sh
+set -eu
+
+out="{{ monitoring_node_exporter_textfile_dir }}/proxy_wireguard_speedtest.prom"
+tmp="${out}.$$"
+json_file="$(mktemp)"
+now="$(date +%s)"
+up="0"
+forward_bps="0"
+reverse_bps="0"
+
+cleanup() {
+  rm -f "${json_file}"
+}
+trap cleanup EXIT
+
+if timeout {{ monitoring_speedtest_timeout }} iperf3 \
+    --client {{ monitoring_wg_peer_ip }} \
+    --port {{ monitoring_speedtest_port }} \
+    --time {{ monitoring_speedtest_duration }} \
+    --parallel {{ monitoring_speedtest_parallel }} \
+    --bind {{ monitoring_wg_local_ip }} \
+    --json >"${json_file}" 2>/dev/null; then
+  forward_bps="$(jq -r '.end.sum_received.bits_per_second // 0' "${json_file}")"
+  up="1"
+fi
+
+if timeout {{ monitoring_speedtest_timeout }} iperf3 \
+    --client {{ monitoring_wg_peer_ip }} \
+    --port {{ monitoring_speedtest_port }} \
+    --time {{ monitoring_speedtest_duration }} \
+    --parallel {{ monitoring_speedtest_parallel }} \
+    --bind {{ monitoring_wg_local_ip }} \
+    --reverse \
+    --json >"${json_file}" 2>/dev/null; then
+  reverse_bps="$(jq -r '.end.sum_received.bits_per_second // 0' "${json_file}")"
+  up="1"
+fi
+
+cat >"${tmp}" <<EOF
+# HELP proxy_wireguard_speedtest_up Whether the last WireGuard iperf3 speedtest completed.
+# TYPE proxy_wireguard_speedtest_up gauge
+proxy_wireguard_speedtest_up{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}"} ${up}
+# HELP proxy_wireguard_speedtest_last_success_unixtime Last successful WireGuard speedtest Unix timestamp.
+# TYPE proxy_wireguard_speedtest_last_success_unixtime gauge
+proxy_wireguard_speedtest_last_success_unixtime{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}"} $([ "${up}" = "1" ] && printf '%s' "${now}" || printf '0')
+# HELP proxy_wireguard_speedtest_bits_per_second WireGuard iperf3 receiver bitrate.
+# TYPE proxy_wireguard_speedtest_bits_per_second gauge
+proxy_wireguard_speedtest_bits_per_second{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}",direction="forward"} ${forward_bps}
+proxy_wireguard_speedtest_bits_per_second{interface="{{ wg_interface }}",peer="{{ monitoring_wg_peer_name }}",direction="reverse"} ${reverse_bps}
+EOF
+
+chown prometheus:prometheus "${tmp}"
+mv "${tmp}" "${out}"

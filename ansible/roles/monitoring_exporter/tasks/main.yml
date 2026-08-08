@@ -1,0 +1,174 @@
+---
+- name: Validate monitoring exporter variables
+  ansible.builtin.assert:
+    that:
+      - wg_interface is defined
+      - wg_ru_ip is defined
+      - wg_non_ru_ip is defined
+      - monitoring_node_exporter_textfile_dir is defined
+    fail_msg: "Missing monitoring exporter variables"
+
+- name: Install monitoring exporter packages
+  ansible.builtin.apt:
+    name:
+      - prometheus-node-exporter
+      - iperf3
+      - jq
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ monitoring_apt_cache_valid_time }}"
+    install_recommends: false
+  when: monitoring_exporter_enabled | bool
+
+- name: Ensure node exporter textfile directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_node_exporter_textfile_dir }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: "0755"
+  when: monitoring_exporter_enabled | bool
+
+- name: Configure node exporter options
+  ansible.builtin.template:
+    src: prometheus-node-exporter.default.j2
+    dest: "{{ monitoring_node_exporter_options_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart node exporter
+  when: monitoring_exporter_enabled | bool
+
+- name: Configure RU monitoring peer facts
+  ansible.builtin.set_fact:
+    monitoring_wg_local_ip: "{{ wg_ru_ip }}"
+    monitoring_wg_peer_ip: "{{ wg_non_ru_ip }}"
+    monitoring_wg_peer_name: non_ru
+  when:
+    - monitoring_exporter_enabled | bool
+    - inventory_hostname in groups.get('ru', [])
+
+- name: Configure Non-RU monitoring peer facts
+  ansible.builtin.set_fact:
+    monitoring_wg_local_ip: "{{ wg_non_ru_ip }}"
+    monitoring_wg_peer_ip: "{{ wg_ru_ip }}"
+    monitoring_wg_peer_name: ru
+  when:
+    - monitoring_exporter_enabled | bool
+    - inventory_hostname in groups.get('non_ru', [])
+
+- name: Write WireGuard metrics script
+  ansible.builtin.template:
+    src: proxy-wg-metrics.j2
+    dest: "{{ monitoring_wg_metrics_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart WireGuard metrics timer
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_wg_metrics_enabled | bool
+
+- name: Write WireGuard metrics service
+  ansible.builtin.template:
+    src: proxy-wg-metrics.service.j2
+    dest: /etc/systemd/system/proxy-wg-metrics.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart WireGuard metrics timer
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_wg_metrics_enabled | bool
+
+- name: Write WireGuard metrics timer
+  ansible.builtin.template:
+    src: proxy-wg-metrics.timer.j2
+    dest: /etc/systemd/system/proxy-wg-metrics.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart WireGuard metrics timer
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_wg_metrics_enabled | bool
+
+- name: Enable WireGuard metrics timer
+  ansible.builtin.systemd:
+    name: proxy-wg-metrics.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_wg_metrics_enabled | bool
+    - not ansible_check_mode
+
+- name: Check whether this host should run speedtest metrics
+  ansible.builtin.set_fact:
+    monitoring_speedtest_is_runner: >-
+      {{
+        monitoring_speedtest_run_on_all_hosts | bool
+        or inventory_hostname in groups.get('ru', [])
+      }}
+  when: monitoring_exporter_enabled | bool
+
+- name: Write WireGuard speedtest metrics script
+  ansible.builtin.template:
+    src: proxy-wg-speedtest-metrics.j2
+    dest: "{{ monitoring_speedtest_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart WireGuard speedtest metrics timer
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_speedtest_metrics_enabled | bool
+    - monitoring_speedtest_is_runner | bool
+
+- name: Write WireGuard speedtest metrics service
+  ansible.builtin.template:
+    src: proxy-wg-speedtest-metrics.service.j2
+    dest: /etc/systemd/system/proxy-wg-speedtest-metrics.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart WireGuard speedtest metrics timer
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_speedtest_metrics_enabled | bool
+    - monitoring_speedtest_is_runner | bool
+
+- name: Write WireGuard speedtest metrics timer
+  ansible.builtin.template:
+    src: proxy-wg-speedtest-metrics.timer.j2
+    dest: /etc/systemd/system/proxy-wg-speedtest-metrics.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart WireGuard speedtest metrics timer
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_speedtest_metrics_enabled | bool
+    - monitoring_speedtest_is_runner | bool
+
+- name: Enable WireGuard speedtest metrics timer
+  ansible.builtin.systemd:
+    name: proxy-wg-speedtest-metrics.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_speedtest_metrics_enabled | bool
+    - monitoring_speedtest_is_runner | bool
+    - not ansible_check_mode
+
+- name: Enable node exporter
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    enabled: true
+    state: started
+  when:
+    - monitoring_exporter_enabled | bool
+    - not ansible_check_mode

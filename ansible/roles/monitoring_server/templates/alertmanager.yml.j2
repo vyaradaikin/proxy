@@ -1,0 +1,20 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: "{{ monitoring_telegram_enabled | bool | ternary('telegram', 'blackhole') }}"
+  group_by:
+    - alertname
+    - instance
+  group_wait: {{ monitoring_alertmanager_group_wait }}
+  group_interval: {{ monitoring_alertmanager_group_interval }}
+  repeat_interval: {{ monitoring_alertmanager_repeat_interval }}
+
+receivers:
+  - name: blackhole
+{% if monitoring_telegram_enabled | bool %}
+  - name: telegram
+    webhook_configs:
+      - url: "http://{{ monitoring_telegram_relay_host }}:{{ monitoring_telegram_relay_port }}/alert"
+        send_resolved: true
+{% endif %}

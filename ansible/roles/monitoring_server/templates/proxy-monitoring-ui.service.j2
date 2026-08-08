@@ -1,0 +1,15 @@
+[Unit]
+Description=Proxy monitoring UI
+After=network-online.target prometheus.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile={{ monitoring_ui_env_path }}
+ExecStart={{ monitoring_ui_path }}
+Restart=on-failure
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+---
+- name: Restart WireGuard transport
+  systemd:
+    name: "{{ wg_udp2raw_service_name }}"
+    state: "{{ wg_udp2raw_restart_state }}"
+    daemon_reload: true
+  when:
+    - not ansible_check_mode
+    - wg_transport == 'udp2raw'

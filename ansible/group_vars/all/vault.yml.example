@@ -6,6 +6,7 @@ wg_ru_private_key: CHANGEME
 wg_ru_public_key: CHANGEME
 wg_non_ru_private_key: CHANGEME
 wg_non_ru_public_key: CHANGEME
+wg_udp2raw_password: CHANGEME
 
 xray_client_id: CHANGEME-UUID
 xray_reality_private_key: CHANGEME

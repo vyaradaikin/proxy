@@ -1,0 +1,17 @@
+[Unit]
+Description=iperf3 server for WireGuard {{ wg_interface }} speed tests
+After=network-online.target wg-quick@{{ wg_interface }}.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/iperf3 --server --bind {{ wg_speedtest_bind_ip }} --port {{ wg_speedtest_port }}
+Restart=always
+RestartSec=1
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

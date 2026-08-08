@@ -1,0 +1,10 @@
+interface={{ wg_interface }}
+listen-address={{ dns_non_ru_bind_ip }}
+port={{ dns_non_ru_listen_port }}
+bind-interfaces
+domain-needed
+bogus-priv
+cache-size=1000
+{% if dns_non_ru_filter_aaaa | bool %}
+filter-AAAA
+{% endif %}

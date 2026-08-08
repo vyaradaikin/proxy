@@ -1,0 +1,10 @@
+---
+wg_speedtest_enabled: true
+wg_speedtest_install: true
+wg_speedtest_port: 5201
+wg_speedtest_duration: 10
+wg_speedtest_parallel: 1
+wg_speedtest_reverse: true
+wg_speedtest_json: false
+wg_speedtest_service_name: iperf3-wg-server
+wg_speedtest_script_path: /usr/local/bin/wg-speedtest

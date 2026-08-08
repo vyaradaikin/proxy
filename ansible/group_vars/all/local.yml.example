@@ -3,12 +3,31 @@
 
 wg_interface: wg0
 
+common_apt_manage_force_ipv4: false
+common_apt_force_ipv4: true
+
 wg_ru_ip: 10.100.0.2
 wg_non_ru_ip: 10.100.0.1
 wg_network: 10.100.0.0/24
 
 wg_port: 51820
 wg_mtu: 1380
+
+wg_speedtest_enabled: true
+wg_speedtest_port: 5201
+wg_speedtest_duration: 10
+wg_speedtest_parallel: 1
+wg_speedtest_reverse: true
+
+wg_transport: direct
+wg_udp2raw_install: true
+wg_udp2raw_download_url: https://github.com/wangyu-/udp2raw-tunnel/releases/latest/download/udp2raw_binaries.tar.gz
+wg_udp2raw_local_port: 51821
+wg_udp2raw_public_port: 4433
+wg_udp2raw_raw_mode: faketcp
+wg_udp2raw_mtu: 1200
+wg_udp2raw_extra_args:
+  - --fix-gro
 
 ru_public_ip: 203.0.113.10
 non_ru_public_ip: 198.51.100.10
@@ -20,6 +39,44 @@ xray_sni: example.com
 routing_table: wgexit
 routing_table_id: 100
 routing_mark: 100
+routing_ru_service_egress_enabled: false
+routing_ru_service_egress_tcp_ports:
+  - 80
+  - 443
+  - 53
+routing_ru_service_egress_udp_ports:
+  - 53
+  - 123
+routing_ru_service_egress_excluded_ipv4_cidrs:
+  - 0.0.0.0/8
+  - 10.0.0.0/8
+  - 100.64.0.0/10
+  - 127.0.0.0/8
+  - 169.254.0.0/16
+  - 172.16.0.0/12
+  - 192.0.2.0/24
+  - 192.168.0.0/16
+  - 198.51.100.0/24
+  - 203.0.113.0/24
+  - 224.0.0.0/4
+  - 240.0.0.0/4
+routing_ru_service_egress_excluded_ipv4_addresses:
+  - "{{ ru_public_ip }}"
+  - "{{ non_ru_public_ip }}"
+  - "{{ wg_ru_ip }}"
+  - "{{ wg_non_ru_ip }}"
+
+dns_non_ru_forwarder_enabled: false
+dns_non_ru_bind_ip: "{{ wg_non_ru_ip }}"
+dns_non_ru_listen_port: 53
+dns_non_ru_filter_aaaa: true
+dns_ru_manage_resolv_conf: false
+dns_ru_nameservers:
+  - "{{ wg_non_ru_ip }}"
+dns_ru_search_domains: []
+dns_ru_resolv_options:
+  - timeout:2
+  - attempts:3
 
 firewall_ru_extra_tcp_ports: []
 firewall_ru_extra_udp_ports: []

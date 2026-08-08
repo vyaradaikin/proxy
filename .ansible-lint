@@ -1,0 +1,10 @@
+---
+skip_list:
+  - fqcn
+  - ignore-errors
+  - line-length
+  - name
+  - no-changed-when
+  - risky-shell-pipe
+  - var-naming
+  - yaml

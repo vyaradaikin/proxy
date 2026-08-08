@@ -1,4 +1,14 @@
 ---
+- name: Configure apt IPv4 mode
+  copy:
+    dest: /etc/apt/apt.conf.d/99-proxy-force-ipv4
+    content: |
+      Acquire::ForceIPv4 "{{ common_apt_force_ipv4 | bool | ternary('true', 'false') }}";
+    owner: root
+    group: root
+    mode: "0644"
+  when: common_apt_manage_force_ipv4 | bool
+
 - name: Update apt cache
   apt:
     update_cache: yes

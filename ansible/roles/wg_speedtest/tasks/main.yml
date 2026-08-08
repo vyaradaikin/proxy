@@ -1,0 +1,77 @@
+---
+- name: Validate WireGuard speedtest variables
+  assert:
+    that:
+      - wg_speedtest_enabled is defined
+      - wg_speedtest_port is defined
+      - wg_speedtest_duration is defined
+      - wg_interface is defined
+      - wg_ru_ip is defined
+      - wg_non_ru_ip is defined
+    fail_msg: "Missing WireGuard speedtest variables"
+
+- name: Disable distro iperf3 daemon prompt
+  debconf:
+    name: iperf3
+    question: iperf3/start_daemon
+    vtype: boolean
+    value: "false"
+  when:
+    - wg_speedtest_enabled | bool
+    - wg_speedtest_install | bool
+
+- name: Install iperf3
+  apt:
+    name: iperf3
+    state: present
+    update_cache: false
+  when:
+    - wg_speedtest_enabled | bool
+    - wg_speedtest_install | bool
+
+- name: Configure RU speedtest facts
+  set_fact:
+    wg_speedtest_bind_ip: "{{ wg_ru_ip }}"
+    wg_speedtest_peer_ip: "{{ wg_non_ru_ip }}"
+    wg_speedtest_peer_name: non_ru
+  when:
+    - wg_speedtest_enabled | bool
+    - inventory_hostname in groups.get('ru', [])
+
+- name: Configure Non-RU speedtest facts
+  set_fact:
+    wg_speedtest_bind_ip: "{{ wg_non_ru_ip }}"
+    wg_speedtest_peer_ip: "{{ wg_ru_ip }}"
+    wg_speedtest_peer_name: ru
+  when:
+    - wg_speedtest_enabled | bool
+    - inventory_hostname in groups.get('non_ru', [])
+
+- name: Write WireGuard speedtest server service
+  template:
+    src: iperf3-wg-server.service.j2
+    dest: "/etc/systemd/system/{{ wg_speedtest_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart WireGuard speedtest server
+  when: wg_speedtest_enabled | bool
+
+- name: Enable WireGuard speedtest server
+  systemd:
+    name: "{{ wg_speedtest_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - wg_speedtest_enabled | bool
+    - not ansible_check_mode
+
+- name: Write WireGuard speedtest client script
+  template:
+    src: wg-speedtest.j2
+    dest: "{{ wg_speedtest_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when: wg_speedtest_enabled | bool

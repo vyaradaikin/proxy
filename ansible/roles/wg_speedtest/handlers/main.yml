@@ -1,0 +1,9 @@
+---
+- name: Restart WireGuard speedtest server
+  systemd:
+    name: "{{ wg_speedtest_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when:
+    - wg_speedtest_enabled | bool
+    - not ansible_check_mode

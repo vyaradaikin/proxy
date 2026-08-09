@@ -2,11 +2,29 @@
 - name: Validate monitoring exporter variables
   ansible.builtin.assert:
     that:
+      - monitoring_node_exporter_textfile_dir is defined
+    fail_msg: "Missing monitoring exporter variables"
+
+- name: Check whether this host should collect WireGuard metrics
+  ansible.builtin.set_fact:
+    monitoring_wg_metrics_host: >-
+      {{
+        inventory_hostname in groups.get('ru', [])
+        or inventory_hostname in groups.get('non_ru', [])
+      }}
+  when: monitoring_exporter_enabled | bool
+
+- name: Validate WireGuard monitoring exporter variables
+  ansible.builtin.assert:
+    that:
       - wg_interface is defined
       - wg_ru_ip is defined
       - wg_non_ru_ip is defined
-      - monitoring_node_exporter_textfile_dir is defined
-    fail_msg: "Missing monitoring exporter variables"
+    fail_msg: "Missing WireGuard monitoring exporter variables"
+  when:
+    - monitoring_exporter_enabled | bool
+    - monitoring_wg_metrics_enabled | bool
+    - monitoring_wg_metrics_host | bool
 
 - name: Install monitoring exporter packages
   ansible.builtin.apt:
@@ -68,6 +86,7 @@
   when:
     - monitoring_exporter_enabled | bool
     - monitoring_wg_metrics_enabled | bool
+    - monitoring_wg_metrics_host | bool
 
 - name: Write WireGuard metrics service
   ansible.builtin.template:
@@ -80,6 +99,7 @@
   when:
     - monitoring_exporter_enabled | bool
     - monitoring_wg_metrics_enabled | bool
+    - monitoring_wg_metrics_host | bool
 
 - name: Write WireGuard metrics timer
   ansible.builtin.template:
@@ -92,6 +112,7 @@
   when:
     - monitoring_exporter_enabled | bool
     - monitoring_wg_metrics_enabled | bool
+    - monitoring_wg_metrics_host | bool
 
 - name: Enable WireGuard metrics timer
   ansible.builtin.systemd:
@@ -102,14 +123,18 @@
   when:
     - monitoring_exporter_enabled | bool
     - monitoring_wg_metrics_enabled | bool
+    - monitoring_wg_metrics_host | bool
     - not ansible_check_mode
 
 - name: Check whether this host should run speedtest metrics
   ansible.builtin.set_fact:
     monitoring_speedtest_is_runner: >-
       {{
-        monitoring_speedtest_run_on_all_hosts | bool
-        or inventory_hostname in groups.get('ru', [])
+        monitoring_wg_metrics_host | bool
+        and (
+          monitoring_speedtest_run_on_all_hosts | bool
+          or inventory_hostname in groups.get('ru', [])
+        )
       }}
   when: monitoring_exporter_enabled | bool
 

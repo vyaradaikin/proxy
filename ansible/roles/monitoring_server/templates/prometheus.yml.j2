@@ -19,6 +19,12 @@ scrape_configs:
 
   - job_name: node
     static_configs:
+{% if monitoring_include_self_node | bool %}
+      - targets:
+          - {{ monitoring_self_node_target.address }}
+        labels:
+          instance: {{ monitoring_self_node_target.name }}
+{% endif %}
 {% for target in monitoring_node_targets %}
       - targets:
           - {{ target.address }}

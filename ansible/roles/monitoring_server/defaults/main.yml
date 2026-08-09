@@ -44,6 +44,10 @@ monitoring_public_nginx_site_path: /etc/nginx/sites-available/proxy-monitoring.c
 monitoring_public_nginx_site_link: /etc/nginx/sites-enabled/proxy-monitoring.conf
 
 monitoring_node_exporter_port: 9100
+monitoring_include_self_node: true
+monitoring_self_node_target:
+  name: monitoring
+  address: "127.0.0.1:{{ monitoring_node_exporter_port }}"
 monitoring_node_targets:
   - name: ru
     address: "{{ wg_ru_ip }}:{{ monitoring_node_exporter_port }}"

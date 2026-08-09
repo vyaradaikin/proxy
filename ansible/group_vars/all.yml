@@ -57,6 +57,11 @@ monitoring_blackbox_port: 19115
 monitoring_exporter_enabled: false
 monitoring_node_exporter_port: 9100
 monitoring_node_exporter_listen_address: "0.0.0.0"
+monitoring_node_exporter_monitoring_listen_address: "127.0.0.1"
+monitoring_include_self_node: true
+monitoring_self_node_target:
+  name: monitoring
+  address: "127.0.0.1:{{ monitoring_node_exporter_port }}"
 monitoring_scrape_source_ips: []
 monitoring_wg_metrics_enabled: true
 monitoring_speedtest_metrics_enabled: true

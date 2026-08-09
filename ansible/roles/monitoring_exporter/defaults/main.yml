@@ -3,6 +3,7 @@ monitoring_exporter_enabled: true
 monitoring_apt_cache_valid_time: 3600
 monitoring_node_exporter_port: 9100
 monitoring_node_exporter_listen_address: "0.0.0.0"
+monitoring_node_exporter_monitoring_listen_address: "127.0.0.1"
 monitoring_node_exporter_textfile_dir: /var/lib/prometheus/node-exporter
 monitoring_node_exporter_options_path: /etc/default/prometheus-node-exporter
 

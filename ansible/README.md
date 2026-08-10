@@ -204,6 +204,8 @@ Non-RU node or on a separate VM:
 
 - `prometheus-node-exporter` on RU and Non-RU for CPU, RAM, disk, load, and
   textfile metrics.
+- `prometheus-node-exporter` on the monitoring server itself for CPU, RAM, disk,
+  and load alerts on the monitoring VM.
 - custom WireGuard textfile metrics for handshake age, transfer counters, and
   tunnel ping.
 - periodic iperf3 speedtest metrics through WireGuard.

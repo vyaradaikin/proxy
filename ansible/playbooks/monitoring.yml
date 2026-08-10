@@ -3,6 +3,7 @@
   hosts:
     - ru
     - non_ru
+    - monitoring
   become: true
   vars_files:
     - ../group_vars/all.yml
@@ -18,7 +19,10 @@
 
   roles:
     - monitoring_exporter
-    - firewall
+    - role: firewall
+      when: >-
+        inventory_hostname in groups.get('ru', [])
+        or inventory_hostname in groups.get('non_ru', [])
 
 - name: Configure monitoring server
   hosts:

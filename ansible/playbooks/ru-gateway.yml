@@ -18,6 +18,7 @@
     - wireguard_transport
     - wireguard
     - xray
+    - xray_user_ui
     - routing
     - dns
     - wg_speedtest

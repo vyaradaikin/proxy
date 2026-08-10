@@ -35,6 +35,8 @@ non_ru_external_interface: eth0
 
 xray_dest: example.com:443
 xray_sni: example.com
+xray_user_ui_enabled: false
+xray_user_ui_basic_auth_user: admin
 
 monitoring_server_hosts: non_ru
 monitoring_server_enabled: false

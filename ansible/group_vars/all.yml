@@ -49,6 +49,11 @@ xray_ru_domains:
 xray_ru_ips:
   - geoip:ru
 
+xray_user_ui_enabled: false
+xray_user_ui_port: 19095
+xray_user_ui_listen_address: "127.0.0.1"
+xray_user_ui_basic_auth_user: admin
+
 monitoring_server_hosts: non_ru
 monitoring_server_enabled: false
 monitoring_prometheus_port: 19090

@@ -1,0 +1,293 @@
+#!/usr/bin/env python3
+{% raw %}
+import base64
+import html
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+import time
+import urllib.parse
+import uuid
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+
+LISTEN_ADDRESS = os.environ.get("UI_LISTEN_ADDRESS", "127.0.0.1")
+PORT = int(os.environ.get("UI_PORT", "19095"))
+USERNAME = os.environ.get("UI_USERNAME", "admin")
+PASSWORD = os.environ.get("UI_PASSWORD", "")
+XRAY_CONFIG_PATH = os.environ.get("XRAY_CONFIG_PATH", "/usr/local/etc/xray/config.json")
+XRAY_CLIENTS_PATH = os.environ.get("XRAY_CLIENTS_PATH", "/usr/local/etc/xray/clients.json")
+XRAY_BINARY_PATH = os.environ.get("XRAY_BINARY_PATH", "/usr/local/bin/xray")
+XRAY_PUBLIC_HOST = os.environ.get("XRAY_PUBLIC_HOST", "")
+XRAY_PORT = os.environ.get("XRAY_PORT", "443")
+XRAY_SNI = os.environ.get("XRAY_SNI", "")
+XRAY_PUBLIC_KEY = os.environ.get("XRAY_PUBLIC_KEY", "")
+XRAY_SHORT_ID = os.environ.get("XRAY_SHORT_ID", "")
+XRAY_DEFAULT_FLOW = os.environ.get("XRAY_DEFAULT_FLOW", "xtls-rprx-vision")
+XRAY_FINGERPRINT = os.environ.get("XRAY_FINGERPRINT", "chrome")
+
+
+def load_json(path, default):
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            return json.load(stream)
+    except FileNotFoundError:
+        return default
+
+
+def atomic_write_json(path, payload, mode=0o600):
+    directory = os.path.dirname(path)
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(prefix=".tmp-", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(payload, stream, indent=2)
+            stream.write("\n")
+        os.chmod(tmp_path, mode)
+        os.replace(tmp_path, path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+def normalize_clients(clients):
+    normalized = []
+    seen = set()
+    for client in clients:
+        client_id = str(client.get("id", "")).strip()
+        if not client_id or client_id in seen:
+            continue
+        seen.add(client_id)
+        item = {"id": client_id}
+        flow = str(client.get("flow", XRAY_DEFAULT_FLOW)).strip()
+        email = str(client.get("email", "")).strip()
+        if flow:
+            item["flow"] = flow
+        if email:
+            item["email"] = email
+        normalized.append(item)
+    return normalized
+
+
+def load_clients():
+    return normalize_clients(load_json(XRAY_CLIENTS_PATH, []))
+
+
+def save_clients_and_reload(clients):
+    clients = normalize_clients(clients)
+    config = load_json(XRAY_CONFIG_PATH, {})
+    inbounds = config.setdefault("inbounds", [])
+    if not inbounds:
+        raise RuntimeError("Xray config has no inbounds")
+    settings = inbounds[0].setdefault("settings", {})
+    settings["clients"] = clients
+
+    directory = os.path.dirname(XRAY_CONFIG_PATH)
+    fd, tmp_config = tempfile.mkstemp(prefix=".xray-config-", suffix=".json", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(config, stream, indent=2)
+            stream.write("\n")
+        subprocess.run([XRAY_BINARY_PATH, "run", "-test", "-config", tmp_config], check=True, capture_output=True, text=True)
+        backup_path = XRAY_CONFIG_PATH + ".before-user-ui-" + time.strftime("%Y%m%d%H%M%S")
+        shutil.copy2(XRAY_CONFIG_PATH, backup_path)
+        os.replace(tmp_config, XRAY_CONFIG_PATH)
+        atomic_write_json(XRAY_CLIENTS_PATH, clients)
+        subprocess.run(["systemctl", "restart", "xray"], check=True, capture_output=True, text=True)
+    finally:
+        if os.path.exists(tmp_config):
+            os.unlink(tmp_config)
+
+
+def reality_link(client):
+    client_id = urllib.parse.quote(client["id"])
+    label = urllib.parse.quote(client.get("email") or client["id"])
+    params = {
+        "type": "tcp",
+        "security": "reality",
+        "pbk": XRAY_PUBLIC_KEY,
+        "fp": XRAY_FINGERPRINT,
+        "sni": XRAY_SNI,
+        "sid": XRAY_SHORT_ID,
+    }
+    if client.get("flow"):
+        params["flow"] = client["flow"]
+    query = urllib.parse.urlencode(params)
+    return f"vless://{client_id}@{XRAY_PUBLIC_HOST}:{XRAY_PORT}?{query}#{label}"
+
+
+def parse_form(body):
+    return {key: values[-1] for key, values in urllib.parse.parse_qs(body.decode("utf-8")).items()}
+
+
+def page(message="", error=""):
+    clients = load_clients()
+    rows = []
+    for client in clients:
+        link = reality_link(client)
+        rows.append(f"""
+          <tr>
+            <td><strong>{html.escape(client.get("email", ""))}</strong><div class="muted">{html.escape(client["id"])}</div></td>
+            <td>{html.escape(client.get("flow", ""))}</td>
+            <td><input readonly value="{html.escape(link)}" onclick="this.select()"></td>
+            <td>
+              <form method="post" action="/delete">
+                <input type="hidden" name="id" value="{html.escape(client["id"])}">
+                <button class="danger" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+        """)
+    rows_html = "\n".join(rows) if rows else '<tr><td colspan="4" class="muted">No clients configured.</td></tr>'
+    message_html = f'<div class="notice ok">{html.escape(message)}</div>' if message else ""
+    error_html = f'<div class="notice bad">{html.escape(error)}</div>' if error else ""
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xray Users</title>
+  <style>
+    :root {{
+      color-scheme: light dark;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #667085;
+      --border: #d8dee7;
+      --bad: #b42318;
+      --ok: #147d4f;
+    }}
+    @media (prefers-color-scheme: dark) {{
+      :root {{
+        --bg: #101418;
+        --panel: #171d23;
+        --text: #eef2f6;
+        --muted: #a8b2bf;
+        --border: #303946;
+        --bad: #ff6b62;
+        --ok: #45c486;
+      }}
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{ margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }}
+    .wrap {{ max-width: 1180px; margin: 0 auto; padding: 20px; }}
+    header {{ border-bottom: 1px solid var(--border); background: var(--panel); }}
+    h1 {{ margin: 0; font-size: 22px; }}
+    h2 {{ margin: 24px 0 12px; font-size: 16px; }}
+    .muted {{ color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }}
+    .card {{ background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }}
+    .form-grid {{ display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto; gap: 10px; align-items: end; }}
+    label {{ display: grid; gap: 6px; font-size: 13px; color: var(--muted); }}
+    input {{ width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 9px 10px; background: var(--bg); color: var(--text); font: inherit; }}
+    button {{ border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; background: var(--panel); color: var(--text); cursor: pointer; font: inherit; }}
+    button.primary {{ background: var(--ok); border-color: var(--ok); color: white; }}
+    button.danger {{ color: var(--bad); }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th, td {{ border-bottom: 1px solid var(--border); padding: 10px; text-align: left; vertical-align: top; }}
+    th {{ color: var(--muted); font-size: 12px; font-weight: 650; }}
+    td:nth-child(3) {{ width: 48%; }}
+    .notice {{ margin-top: 14px; border-radius: 6px; padding: 10px 12px; }}
+    .notice.ok {{ border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); color: var(--ok); }}
+    .notice.bad {{ border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent); color: var(--bad); }}
+    @media (max-width: 760px) {{ .form-grid {{ grid-template-columns: 1fr; }} table {{ font-size: 13px; }} }}
+  </style>
+</head>
+<body>
+  <header><div class="wrap"><h1>Xray Users</h1><div class="muted">{html.escape(XRAY_PUBLIC_HOST)}:{html.escape(str(XRAY_PORT))} / {html.escape(XRAY_SNI)}</div></div></header>
+  <main class="wrap">
+    <section class="card">
+      <h2>Add User</h2>
+      <form method="post" action="/add" class="form-grid">
+        <label>Name<input name="email" placeholder="alice" required></label>
+        <label>UUID<input name="id" placeholder="auto-generated when empty"></label>
+        <button class="primary" type="submit">Add User</button>
+      </form>
+      {message_html}
+      {error_html}
+    </section>
+    <section>
+      <h2>Users</h2>
+      <div class="card">
+        <table>
+          <thead><tr><th>User</th><th>Flow</th><th>VLESS Reality URL</th><th></th></tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>"""
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        return
+
+    def authorized(self):
+        header = self.headers.get("Authorization", "")
+        expected = "Basic " + base64.b64encode(f"{USERNAME}:{PASSWORD}".encode()).decode()
+        return header == expected
+
+    def require_auth(self):
+        self.send_response(HTTPStatus.UNAUTHORIZED)
+        self.send_header("WWW-Authenticate", 'Basic realm="Xray Users"')
+        self.end_headers()
+
+    def send_html(self, content, status=HTTPStatus.OK):
+        payload = content.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def do_GET(self):
+        if not self.authorized():
+            self.require_auth()
+            return
+        if self.path in ("/", "/index.html"):
+            self.send_html(page())
+            return
+        self.send_error(HTTPStatus.NOT_FOUND)
+
+    def do_POST(self):
+        if not self.authorized():
+            self.require_auth()
+            return
+        length = int(self.headers.get("Content-Length", "0"))
+        form = parse_form(self.rfile.read(length))
+        try:
+            clients = load_clients()
+            if self.path == "/add":
+                client_id = form.get("id", "").strip() or str(uuid.uuid4())
+                uuid.UUID(client_id)
+                email = form.get("email", "").strip()
+                if any(client["id"] == client_id for client in clients):
+                    raise RuntimeError("Client UUID already exists")
+                clients.append({"id": client_id, "flow": XRAY_DEFAULT_FLOW, "email": email})
+                save_clients_and_reload(clients)
+                self.send_html(page(message="User added and Xray restarted."))
+                return
+            if self.path == "/delete":
+                client_id = form.get("id", "").strip()
+                updated = [client for client in clients if client["id"] != client_id]
+                if len(updated) == len(clients):
+                    raise RuntimeError("Client UUID not found")
+                if not updated:
+                    raise RuntimeError("Refusing to delete the last Xray client")
+                save_clients_and_reload(updated)
+                self.send_html(page(message="User deleted and Xray restarted."))
+                return
+            self.send_error(HTTPStatus.NOT_FOUND)
+        except Exception as error:
+            self.send_html(page(error=str(error)), status=HTTPStatus.BAD_REQUEST)
+
+
+if __name__ == "__main__":
+    ThreadingHTTPServer((LISTEN_ADDRESS, PORT), Handler).serve_forever()
+{% endraw %}

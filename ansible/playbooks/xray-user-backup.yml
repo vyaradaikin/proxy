@@ -1,0 +1,38 @@
+---
+- name: Configure Xray user backup destination
+  hosts: monitoring
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  pre_tasks:
+    - name: Load local variable overrides
+      ansible.builtin.include_vars: ../group_vars/all/local.yml
+      ignore_errors: true
+
+    - name: Load vault secrets
+      ansible.builtin.include_vars: ../group_vars/all/vault.yml
+      ignore_errors: true
+      no_log: true
+
+  roles:
+    - role: xray_user_backup
+      xray_user_backup_role: destination
+
+- name: Configure Xray user backup source access
+  hosts: ru
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  pre_tasks:
+    - name: Load local variable overrides
+      ansible.builtin.include_vars: ../group_vars/all/local.yml
+      ignore_errors: true
+
+    - name: Load vault secrets
+      ansible.builtin.include_vars: ../group_vars/all/vault.yml
+      ignore_errors: true
+      no_log: true
+
+  roles:
+    - role: xray_user_backup
+      xray_user_backup_role: source

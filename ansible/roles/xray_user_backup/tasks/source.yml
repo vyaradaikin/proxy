@@ -1,0 +1,18 @@
+---
+- name: Validate Xray user backup source variables
+  ansible.builtin.assert:
+    that:
+      - xray_user_backup_monitoring_host in hostvars
+      - hostvars[xray_user_backup_monitoring_host].xray_user_backup_public_key is defined
+      - xray_user_backup_monitoring_source_ip | length > 0
+    fail_msg: "Missing Xray user backup public key from monitoring host"
+  when: not ansible_check_mode
+
+- name: Allow monitoring host to pull Xray user backups
+  ansible.posix.authorized_key:
+    user: "{{ xray_user_backup_source_user }}"
+    key: "{{ hostvars[xray_user_backup_monitoring_host].xray_user_backup_public_key }}"
+    key_options: 'from="{{ xray_user_backup_monitoring_source_ip }}",no-agent-forwarding,no-X11-forwarding,no-port-forwarding'
+    state: present
+    comment: xray-user-backup
+  when: not ansible_check_mode

@@ -1,0 +1,82 @@
+---
+- name: Validate Xray user backup destination variables
+  ansible.builtin.assert:
+    that:
+      - xray_user_backup_root | length > 0
+      - xray_user_backup_source_host | length > 0
+      - xray_user_backup_source_files | length > 0
+    fail_msg: "Missing Xray user backup destination variables"
+
+- name: Install Xray user backup destination packages
+  ansible.builtin.apt:
+    name:
+      - openssh-client
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ monitoring_apt_cache_valid_time | default(3600) }}"
+    install_recommends: false
+
+- name: Ensure Xray user backup directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - /root/.ssh
+    - "{{ xray_user_backup_root }}"
+
+- name: Create Xray user backup SSH key
+  ansible.builtin.command:
+    cmd: >-
+      ssh-keygen -t ed25519 -N ''
+      -C xray-user-backup@{{ inventory_hostname }}
+      -f {{ xray_user_backup_key_path }}
+    creates: "{{ xray_user_backup_key_path }}"
+  when: not ansible_check_mode
+
+- name: Read Xray user backup public key
+  ansible.builtin.slurp:
+    src: "{{ xray_user_backup_key_path }}.pub"
+  register: xray_user_backup_public_key_slurp
+  when: not ansible_check_mode
+
+- name: Publish Xray user backup public key fact
+  ansible.builtin.set_fact:
+    xray_user_backup_public_key: "{{ xray_user_backup_public_key_slurp.content | b64decode | trim }}"
+  when: not ansible_check_mode
+
+- name: Write Xray user backup script
+  ansible.builtin.template:
+    src: xray-user-backup.j2
+    dest: "{{ xray_user_backup_script_path }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Write Xray user backup service
+  ansible.builtin.template:
+    src: xray-user-backup.service.j2
+    dest: "/etc/systemd/system/{{ xray_user_backup_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Xray user backup timer
+
+- name: Write Xray user backup timer
+  ansible.builtin.template:
+    src: xray-user-backup.timer.j2
+    dest: "/etc/systemd/system/{{ xray_user_backup_service_name }}.timer"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Xray user backup timer
+
+- name: Enable Xray user backup timer
+  ansible.builtin.systemd:
+    name: "{{ xray_user_backup_service_name }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode

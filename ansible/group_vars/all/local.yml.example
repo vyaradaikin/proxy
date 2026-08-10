@@ -37,6 +37,9 @@ xray_dest: example.com:443
 xray_sni: example.com
 xray_user_ui_enabled: false
 xray_user_ui_basic_auth_user: admin
+xray_user_backup_enabled: false
+xray_user_backup_root: /backup/xray-users
+xray_user_backup_interval: daily
 
 monitoring_server_hosts: non_ru
 monitoring_server_enabled: false

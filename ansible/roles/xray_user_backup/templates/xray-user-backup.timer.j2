@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Xray users backup timer
+
+[Timer]
+OnCalendar={{ xray_user_backup_interval }}
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

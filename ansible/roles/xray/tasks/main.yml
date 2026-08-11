@@ -63,6 +63,13 @@
       - xray_binary_after.stat.exists
     fail_msg: "Xray binary is missing; set xray_install=true or install Xray before running this role"
 
+- name: Ensure Xray service user exists
+  user:
+    name: "{{ xray_user }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
 - name: Create Xray configuration directory
   file:
     path: "{{ xray_config_dir }}"

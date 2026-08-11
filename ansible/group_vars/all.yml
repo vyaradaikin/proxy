@@ -41,7 +41,7 @@ xray_config_path: /usr/local/etc/xray/config.json
 xray_clients_path: /usr/local/etc/xray/clients.json
 xray_binary_path: /usr/local/bin/xray
 xray_geo_dir: /usr/local/share/xray
-xray_user: nobody
+xray_user: xray
 xray_domain_strategy: IPIfNonMatch
 xray_sniffing_enabled: true
 xray_sniffing_dest_override:

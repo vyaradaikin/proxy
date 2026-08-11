@@ -35,6 +35,7 @@ non_ru_external_interface: eth0
 
 xray_dest: example.com:443
 xray_sni: example.com
+xray_user: xray
 xray_sniffing_enabled: true
 xray_sniffing_dest_override:
   - http

@@ -6,6 +6,7 @@ xray_service_path: /etc/systemd/system/xray.service
 xray_loglevel: warning
 xray_restart_state: restarted
 xray_clients_path: /usr/local/etc/xray/clients.json
+xray_user: xray
 xray_default_client_email: primary
 xray_default_client_flow: xtls-rprx-vision
 xray_sniffing_enabled: true

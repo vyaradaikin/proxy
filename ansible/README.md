@@ -171,8 +171,9 @@ xray_extra_direct_ips:
 When `routing_ru_service_egress_enabled` is enabled for server-side updates,
 DNS, NTP, or similar local maintenance traffic, the firewall excludes
 `routing_ru_service_egress_excluded_users` from marking. Keep the Xray service
-user in this list, otherwise Xray `direct` outbound traffic will be marked and
-sent through the Non-RU policy routing table.
+user in this list and make sure `xray_user` matches the actual systemd service
+user, otherwise Xray `direct` outbound traffic will be marked and sent through
+the Non-RU policy routing table.
 
 ## Optional Xray User UI
 

@@ -18,6 +18,11 @@
         ],
         "decryption": "none"
       },
+      "sniffing": {
+        "enabled": {{ xray_sniffing_enabled | bool | to_json }},
+        "destOverride": {{ xray_sniffing_dest_override | to_json }},
+        "routeOnly": {{ xray_sniffing_route_only | bool | to_json }}
+      },
       "streamSettings": {
         "network": "tcp",
         "security": "reality",
@@ -39,6 +44,14 @@
   "routing": {
     "domainStrategy": "{{ xray_domain_strategy }}",
     "rules": [
+{% if xray_client_dns_direct_enabled | bool %}
+      {
+        "type": "field",
+        "network": "tcp,udp",
+        "port": "{{ xray_client_dns_direct_ports }}",
+        "outboundTag": "{{ xray_direct_outbound_tag }}"
+      },
+{% endif %}
       {
         "type": "field",
         "domain": {{ xray_ru_domains | to_json }},

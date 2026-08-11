@@ -112,7 +112,15 @@ This deployment is IPv4-only by design. In clients such as Streisand Desktop, di
 The RU gateway sends Russian and private destinations through the local `direct`
 outbound, while the default outbound is marked for the Non-RU WireGuard policy
 routing table. The default direct rules include `geosite:category-ru`, common
-RU TLD suffixes, `geoip:ru`, and `geoip:private`.
+RU TLD suffixes, `geosite:yandex`, `geoip:ru`, and `geoip:private`.
+
+Xray inbound sniffing is enabled by default for `http`, `tls`, and `quic`.
+Without it, many clients send only already-resolved destination IPs to Xray, so
+domain rules such as `.ru` cannot match reliably.
+
+Client DNS ports `53` and `853` are routed through `direct` by default. This
+helps phones that keep using Google DNS or Private DNS through the tunnel get
+answers from the RU side before connecting to RU-local services.
 
 If a specific Russian service still leaves through the Non-RU tunnel, extend the
 lists in `ansible/group_vars/all/local.yml`:
@@ -120,6 +128,7 @@ lists in `ansible/group_vars/all/local.yml`:
 ```yaml
 xray_ru_domains:
   - geosite:category-ru
+  - geosite:yandex
   - regexp:.*\.ru$
   - regexp:.*\.su$
   - regexp:.*\.xn--p1ai$

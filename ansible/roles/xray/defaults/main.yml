@@ -8,3 +8,11 @@ xray_restart_state: restarted
 xray_clients_path: /usr/local/etc/xray/clients.json
 xray_default_client_email: primary
 xray_default_client_flow: xtls-rprx-vision
+xray_sniffing_enabled: true
+xray_sniffing_dest_override:
+  - http
+  - tls
+  - quic
+xray_sniffing_route_only: false
+xray_client_dns_direct_enabled: true
+xray_client_dns_direct_ports: "53,853"

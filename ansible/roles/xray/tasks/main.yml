@@ -19,6 +19,11 @@
       - xray_client_id | length > 0
       - xray_reality_private_key is defined
       - xray_reality_private_key | length > 0
+      - xray_sniffing_enabled is defined
+      - xray_sniffing_dest_override is defined
+      - xray_sniffing_route_only is defined
+      - xray_client_dns_direct_enabled is defined
+      - xray_client_dns_direct_ports is defined
       - routing_mark is defined
     fail_msg: "Missing Xray Reality variables; provide xray_client_id and xray_reality_private_key through vault/inventory/extra-vars"
 

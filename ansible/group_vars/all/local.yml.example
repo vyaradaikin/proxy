@@ -35,10 +35,19 @@ non_ru_external_interface: eth0
 
 xray_dest: example.com:443
 xray_sni: example.com
+xray_sniffing_enabled: true
+xray_sniffing_dest_override:
+  - http
+  - tls
+  - quic
+xray_sniffing_route_only: false
+xray_client_dns_direct_enabled: true
+xray_client_dns_direct_ports: "53,853"
 # Extend these lists if a local service still resolves outside the built-in
 # RU geosite/geoip datasets but must leave through the RU gateway directly.
 xray_ru_domains:
   - geosite:category-ru
+  - geosite:yandex
   - regexp:.*\.ru$
   - regexp:.*\.su$
   - regexp:.*\.xn--p1ai$

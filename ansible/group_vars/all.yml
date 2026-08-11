@@ -43,10 +43,19 @@ xray_binary_path: /usr/local/bin/xray
 xray_geo_dir: /usr/local/share/xray
 xray_user: nobody
 xray_domain_strategy: IPIfNonMatch
+xray_sniffing_enabled: true
+xray_sniffing_dest_override:
+  - http
+  - tls
+  - quic
+xray_sniffing_route_only: false
+xray_client_dns_direct_enabled: true
+xray_client_dns_direct_ports: "53,853"
 xray_default_outbound_tag: non_ru
 xray_direct_outbound_tag: direct
 xray_ru_domains:
   - geosite:category-ru
+  - geosite:yandex
   - regexp:.*\.ru$
   - regexp:.*\.su$
   - regexp:.*\.xn--p1ai$

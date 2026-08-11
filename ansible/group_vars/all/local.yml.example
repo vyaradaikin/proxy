@@ -48,6 +48,14 @@ xray_client_dns_direct_ports: "53,853"
 xray_ru_domains:
   - geosite:category-ru
   - geosite:yandex
+  - domain:ya.ru
+  - domain:yandex.ru
+  - domain:yandex.net
+  - domain:yastatic.net
+  - domain:yastat.net
+  - domain:cdn.yandex.net
+  - domain:internetometr.download.cdn.yandex.net
+  - domain:strm.yandex.ru
   - regexp:.*\.ru$
   - regexp:.*\.su$
   - regexp:.*\.xn--p1ai$

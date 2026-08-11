@@ -149,6 +149,11 @@ lists in `ansible/group_vars/all/local.yml`:
 xray_ru_domains:
   - geosite:category-ru
   - geosite:yandex
+  - domain:ya.ru
+  - domain:yandex.ru
+  - domain:yandex.net
+  - domain:yastatic.net
+  - domain:yastat.net
   - regexp:.*\.ru$
   - regexp:.*\.su$
   - regexp:.*\.xn--p1ai$

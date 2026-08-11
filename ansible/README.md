@@ -164,6 +164,8 @@ xray_ru_ips:
   - geoip:ru
   - geoip:private
   - 203.0.113.20/32
+xray_extra_direct_ips:
+  - 85.233.74.0/24
 ```
 
 When `routing_ru_service_egress_enabled` is enabled for server-side updates,

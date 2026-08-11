@@ -27,6 +27,8 @@
       - xray_client_encrypted_dns_direct_enabled is defined
       - xray_client_encrypted_dns_domains is defined
       - xray_client_encrypted_dns_ips is defined
+      - xray_extra_direct_domains is defined
+      - xray_extra_direct_ips is defined
       - routing_mark is defined
     fail_msg: "Missing Xray Reality variables; provide xray_client_id and xray_reality_private_key through vault/inventory/extra-vars"
 

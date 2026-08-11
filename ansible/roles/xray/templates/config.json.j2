@@ -66,12 +66,12 @@
 {% endif %}
       {
         "type": "field",
-        "domain": {{ xray_ru_domains | to_json }},
+        "domain": {{ (xray_ru_domains + xray_extra_direct_domains) | to_json }},
         "outboundTag": "{{ xray_direct_outbound_tag }}"
       },
       {
         "type": "field",
-        "ip": {{ xray_ru_ips | to_json }},
+        "ip": {{ (xray_ru_ips + xray_extra_direct_ips) | to_json }},
         "outboundTag": "{{ xray_direct_outbound_tag }}"
       }
     ]

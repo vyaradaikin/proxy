@@ -88,6 +88,8 @@ xray_ru_domains:
 xray_ru_ips:
   - geoip:ru
   - geoip:private
+xray_extra_direct_domains: []
+xray_extra_direct_ips: []
 
 xray_user_ui_enabled: false
 xray_user_ui_port: 19095

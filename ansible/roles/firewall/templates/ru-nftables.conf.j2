@@ -97,3 +97,15 @@ table ip service_egress_nat {
   }
 }
 {% endif %}
+
+{% if dns_ru_split_forwarder_enabled | default(false) | bool and dns_ru_intercept_xray_dns_enabled | default(false) | bool %}
+table ip xray_dns_redirect {
+  chain output {
+    type nat hook output priority dstnat;
+    policy accept;
+
+    meta skuid {{ xray_user }} ip protocol udp udp dport { {{ dns_ru_intercept_xray_dns_ports | join(', ') }} } redirect to :{{ dns_ru_split_listen_port }}
+    meta skuid {{ xray_user }} ip protocol tcp tcp dport { {{ dns_ru_intercept_xray_dns_ports | join(', ') }} } redirect to :{{ dns_ru_split_listen_port }}
+  }
+}
+{% endif %}

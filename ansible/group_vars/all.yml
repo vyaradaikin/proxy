@@ -139,6 +139,28 @@ dns_non_ru_forwarder_enabled: false
 dns_non_ru_bind_ip: "{{ wg_non_ru_ip }}"
 dns_non_ru_listen_port: 53
 dns_non_ru_filter_aaaa: true
+dns_ru_split_forwarder_enabled: false
+dns_ru_split_bind_ip: 127.0.0.1
+dns_ru_split_listen_port: 53
+dns_ru_split_filter_aaaa: true
+dns_ru_split_default_upstreams:
+  - "{{ wg_non_ru_ip }}"
+dns_ru_split_local_upstreams:
+  - 77.88.8.8
+  - 77.88.8.1
+dns_ru_split_local_zones:
+  - ru
+  - su
+  - xn--p1ai
+  - yandex.ru
+  - ya.ru
+  - yandex.net
+  - yastatic.net
+  - yastat.net
+  - yandex-team.ru
+dns_ru_intercept_xray_dns_enabled: false
+dns_ru_intercept_xray_dns_ports:
+  - 53
 dns_ru_manage_resolv_conf: false
 dns_ru_nameservers:
   - "{{ wg_non_ru_ip }}"

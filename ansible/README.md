@@ -122,6 +122,26 @@ Client DNS ports `53` and `853` are routed through `direct` by default. This
 helps phones that keep using Google DNS or Private DNS through the tunnel get
 answers from the RU side before connecting to RU-local services.
 
+For stricter DNS control, enable the RU split DNS forwarder:
+
+```yaml
+dns_non_ru_forwarder_enabled: true
+dns_ru_split_forwarder_enabled: true
+dns_ru_intercept_xray_dns_enabled: true
+dns_ru_manage_resolv_conf: true
+dns_ru_nameservers:
+  - 127.0.0.1
+```
+
+RU `dnsmasq` then forwards normal queries to the Non-RU DNS forwarder over
+WireGuard, but sends configured RU/Yandex zones to RU-side upstream resolvers.
+`dns_ru_intercept_xray_dns_enabled` transparently redirects plain DNS/53
+requests made by the Xray service user to the local split resolver.
+
+Encrypted client DNS on `443`/`853` cannot be transparently split by `dnsmasq`
+without terminating TLS. Disable Private DNS/DoH in the client profile when a
+phone insists on Google DNS and RU services still behave strangely.
+
 If a specific Russian service still leaves through the Non-RU tunnel, extend the
 lists in `ansible/group_vars/all/local.yml`:
 

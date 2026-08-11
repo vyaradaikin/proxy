@@ -5,5 +5,5 @@
     state: restarted
     daemon_reload: true
   when:
-    - dns_non_ru_forwarder_enabled | bool
+    - (dns_non_ru_forwarder_enabled | bool) or (dns_ru_split_forwarder_enabled | default(false) | bool)
     - not ansible_check_mode

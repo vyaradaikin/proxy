@@ -1,0 +1,20 @@
+listen-address={{ dns_ru_split_bind_ip }}
+port={{ dns_ru_split_listen_port }}
+bind-interfaces
+no-resolv
+domain-needed
+bogus-priv
+cache-size={{ dns_ru_split_cache_size }}
+{% if dns_ru_split_filter_aaaa | bool %}
+filter-AAAA
+{% endif %}
+
+{% for upstream in dns_ru_split_default_upstreams %}
+server={{ upstream }}
+{% endfor %}
+
+{% for zone in dns_ru_split_local_zones %}
+{% for upstream in dns_ru_split_local_upstreams %}
+server=/{{ zone }}/{{ upstream }}
+{% endfor %}
+{% endfor %}

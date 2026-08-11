@@ -35,6 +35,16 @@ non_ru_external_interface: eth0
 
 xray_dest: example.com:443
 xray_sni: example.com
+# Extend these lists if a local service still resolves outside the built-in
+# RU geosite/geoip datasets but must leave through the RU gateway directly.
+xray_ru_domains:
+  - geosite:category-ru
+  - regexp:.*\.ru$
+  - regexp:.*\.su$
+  - regexp:.*\.xn--p1ai$
+xray_ru_ips:
+  - geoip:ru
+  - geoip:private
 xray_user_ui_enabled: false
 xray_user_ui_basic_auth_user: admin
 xray_user_backup_enabled: false
@@ -63,6 +73,8 @@ routing_ru_service_egress_tcp_ports:
 routing_ru_service_egress_udp_ports:
   - 53
   - 123
+routing_ru_service_egress_excluded_users:
+  - "{{ xray_user }}"
 routing_ru_service_egress_excluded_ipv4_cidrs:
   - 0.0.0.0/8
   - 10.0.0.0/8

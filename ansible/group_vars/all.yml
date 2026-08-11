@@ -47,8 +47,12 @@ xray_default_outbound_tag: non_ru
 xray_direct_outbound_tag: direct
 xray_ru_domains:
   - geosite:category-ru
+  - regexp:.*\.ru$
+  - regexp:.*\.su$
+  - regexp:.*\.xn--p1ai$
 xray_ru_ips:
   - geoip:ru
+  - geoip:private
 
 xray_user_ui_enabled: false
 xray_user_ui_port: 19095
@@ -101,6 +105,8 @@ routing_ru_service_egress_tcp_ports:
 routing_ru_service_egress_udp_ports:
   - 53
   - 123
+routing_ru_service_egress_excluded_users:
+  - "{{ xray_user }}"
 routing_ru_service_egress_excluded_ipv4_cidrs:
   - 0.0.0.0/8
   - 10.0.0.0/8

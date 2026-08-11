@@ -107,6 +107,35 @@ Client applications connect to the RU gateway with VLESS Reality over TCP. The c
 
 This deployment is IPv4-only by design. In clients such as Streisand Desktop, disable IPv6 for the profile or application tunnel. Leaving IPv6 enabled can make the client try unreachable IPv6 routes or DNS answers, which may look like a broken Reality/Xray profile even when the server is healthy.
 
+## Xray Split Routing
+
+The RU gateway sends Russian and private destinations through the local `direct`
+outbound, while the default outbound is marked for the Non-RU WireGuard policy
+routing table. The default direct rules include `geosite:category-ru`, common
+RU TLD suffixes, `geoip:ru`, and `geoip:private`.
+
+If a specific Russian service still leaves through the Non-RU tunnel, extend the
+lists in `ansible/group_vars/all/local.yml`:
+
+```yaml
+xray_ru_domains:
+  - geosite:category-ru
+  - regexp:.*\.ru$
+  - regexp:.*\.su$
+  - regexp:.*\.xn--p1ai$
+  - domain:example.ru
+xray_ru_ips:
+  - geoip:ru
+  - geoip:private
+  - 203.0.113.20/32
+```
+
+When `routing_ru_service_egress_enabled` is enabled for server-side updates,
+DNS, NTP, or similar local maintenance traffic, the firewall excludes
+`routing_ru_service_egress_excluded_users` from marking. Keep the Xray service
+user in this list, otherwise Xray `direct` outbound traffic will be marked and
+sent through the Non-RU policy routing table.
+
 ## Optional Xray User UI
 
 The RU gateway can run a small localhost-only UI for adding and removing VLESS

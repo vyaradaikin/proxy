@@ -1,0 +1,12 @@
+---
+- name: Configure Xray user backup destination
+  ansible.builtin.include_tasks: destination.yml
+  when:
+    - xray_user_backup_enabled | bool
+    - xray_user_backup_role == 'destination'
+
+- name: Configure Xray user backup source
+  ansible.builtin.include_tasks: source.yml
+  when:
+    - xray_user_backup_enabled | bool
+    - xray_user_backup_role == 'source'

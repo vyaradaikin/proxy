@@ -1,0 +1,8 @@
+[Unit]
+Description=Backup Xray users from {{ xray_user_backup_source_name }}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ xray_user_backup_script_path }}

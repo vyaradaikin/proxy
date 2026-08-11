@@ -1,0 +1,11 @@
+---
+xray_user_ui_enabled: false
+xray_user_ui_port: 19095
+xray_user_ui_listen_address: "127.0.0.1"
+xray_user_ui_service_name: xray-user-ui
+xray_user_ui_path: /usr/local/bin/xray-user-ui
+xray_user_ui_env_path: /etc/default/xray-user-ui
+xray_user_ui_basic_auth_user: admin
+xray_user_ui_basic_auth_password: ""
+xray_user_ui_public_host: "{{ ru_public_ip }}"
+xray_user_ui_fingerprint: chrome

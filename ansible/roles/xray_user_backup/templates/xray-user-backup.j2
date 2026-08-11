@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+backup_root={{ xray_user_backup_root | quote }}
+source_name={{ xray_user_backup_source_name | quote }}
+source_user={{ xray_user_backup_source_user | quote }}
+source_host={{ xray_user_backup_source_host | quote }}
+key_path={{ xray_user_backup_key_path | quote }}
+retention_days={{ xray_user_backup_retention_days | quote }}
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+target_dir="${backup_root}/${source_name}/${timestamp}"
+latest_link="${backup_root}/${source_name}/latest"
+
+mkdir -p "${target_dir}"
+chmod 0700 "${backup_root}" "${backup_root}/${source_name}" "${target_dir}"
+
+ssh_opts="-i ${key_path} -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout={{ xray_user_backup_ssh_connect_timeout }}"
+
+{% for source_file in xray_user_backup_source_files %}
+scp ${ssh_opts} "${source_user}@${source_host}:{{ source_file }}" "${target_dir}/{{ source_file | basename }}"
+{% endfor %}
+
+sha256sum "${target_dir}"/* > "${target_dir}/SHA256SUMS"
+ln -sfn "${target_dir}" "${latest_link}"
+find "${backup_root}/${source_name}" -mindepth 1 -maxdepth 1 -type d -mtime +"${retention_days}" -exec rm -rf {} +

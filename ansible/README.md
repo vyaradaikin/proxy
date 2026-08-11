@@ -107,6 +107,82 @@ Client applications connect to the RU gateway with VLESS Reality over TCP. The c
 
 This deployment is IPv4-only by design. In clients such as Streisand Desktop, disable IPv6 for the profile or application tunnel. Leaving IPv6 enabled can make the client try unreachable IPv6 routes or DNS answers, which may look like a broken Reality/Xray profile even when the server is healthy.
 
+## Optional Xray User UI
+
+The RU gateway can run a small localhost-only UI for adding and removing VLESS
+Reality users. It edits `xray_clients_path`, validates the generated Xray config,
+and restarts Xray after each change. This keeps UI-created users compatible with
+future Ansible runs.
+
+Enable it in `ansible/group_vars/all/local.yml`:
+
+```yaml
+xray_user_ui_enabled: true
+xray_user_ui_basic_auth_user: admin
+```
+
+Store the Basic Auth password in vault:
+
+```yaml
+xray_user_ui_basic_auth_password: "CHANGEME"
+```
+
+The UI is bound to localhost by default. Open it through an SSH tunnel:
+
+```bash
+ssh -L 19095:127.0.0.1:19095 ruvpn
+```
+
+Then browse to `http://127.0.0.1:19095`.
+
+## Optional Xray User Backups
+
+Xray user configuration can be backed up daily from the monitoring VM. The
+monitoring host creates a dedicated SSH key, RU authorizes that key, and the
+timer pulls:
+
+- `xray_clients_path`, default `/usr/local/etc/xray/clients.json`
+- `xray_config_path`, default `/usr/local/etc/xray/config.json`
+
+Enable it in `ansible/group_vars/all/local.yml`:
+
+```yaml
+xray_user_backup_enabled: true
+xray_user_backup_root: /backup/xray-users
+xray_user_backup_interval: daily
+xray_user_backup_retention_days: 30
+```
+
+Apply:
+
+```bash
+make apply-xray-backup
+```
+
+Backups are stored on the monitoring host:
+
+```text
+/backup/xray-users/<ru-host>/<timestamp>/
+├── clients.json
+├── config.json
+└── SHA256SUMS
+```
+
+The `latest` symlink points to the newest backup.
+
+Restore after service loss on RU:
+
+```bash
+backup=/backup/xray-users/ruvpn/latest
+scp "${backup}/clients.json" ruvpn:/usr/local/etc/xray/clients.json
+scp "${backup}/config.json" ruvpn:/usr/local/etc/xray/config.json
+ssh ruvpn 'xray run -test -config /usr/local/etc/xray/config.json'
+ssh ruvpn 'systemctl restart xray xray-user-ui'
+```
+
+After restoring, run `make apply-ru` once from the repository. Ansible will read
+the restored `clients.json` and keep UI-created users intact.
+
 ## Optional WireGuard Transport Obfuscation
 
 Default mode is plain WireGuard:

@@ -5,3 +5,6 @@ xray_install_script_path: /tmp/xray-install-release.sh
 xray_service_path: /etc/systemd/system/xray.service
 xray_loglevel: warning
 xray_restart_state: restarted
+xray_clients_path: /usr/local/etc/xray/clients.json
+xray_default_client_email: primary
+xray_default_client_flow: xtls-rprx-vision

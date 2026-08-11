@@ -1,0 +1,18 @@
+---
+xray_user_backup_enabled: false
+xray_user_backup_role: destination
+xray_user_backup_root: /backup/xray-users
+xray_user_backup_source_name: "{{ groups.get('ru', ['ru'])[0] }}"
+xray_user_backup_source_host: "{{ hostvars[groups.get('ru', ['ru'])[0]].ansible_host | default(ru_public_ip) }}"
+xray_user_backup_source_user: root
+xray_user_backup_source_files:
+  - "{{ xray_clients_path }}"
+  - "{{ xray_config_path }}"
+xray_user_backup_key_path: /root/.ssh/xray-user-backup-ed25519
+xray_user_backup_script_path: /usr/local/sbin/xray-user-backup
+xray_user_backup_service_name: xray-user-backup
+xray_user_backup_interval: daily
+xray_user_backup_retention_days: 30
+xray_user_backup_ssh_connect_timeout: 15
+xray_user_backup_monitoring_host: "{{ groups.get('monitoring', ['monitoring'])[0] }}"
+xray_user_backup_monitoring_source_ip: "{{ hostvars[xray_user_backup_monitoring_host].ansible_host | default('') }}"

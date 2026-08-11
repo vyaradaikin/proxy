@@ -1,0 +1,9 @@
+---
+- name: Restart Xray user UI
+  ansible.builtin.systemd:
+    name: "{{ xray_user_ui_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when:
+    - xray_user_ui_enabled | bool
+    - not ansible_check_mode

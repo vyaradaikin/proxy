@@ -38,6 +38,7 @@ xray_sni: example.com
 xray_short_id: ""
 xray_config_dir: /usr/local/etc/xray
 xray_config_path: /usr/local/etc/xray/config.json
+xray_clients_path: /usr/local/etc/xray/clients.json
 xray_binary_path: /usr/local/bin/xray
 xray_geo_dir: /usr/local/share/xray
 xray_user: nobody
@@ -48,6 +49,16 @@ xray_ru_domains:
   - geosite:category-ru
 xray_ru_ips:
   - geoip:ru
+
+xray_user_ui_enabled: false
+xray_user_ui_port: 19095
+xray_user_ui_listen_address: "127.0.0.1"
+xray_user_ui_basic_auth_user: admin
+
+xray_user_backup_enabled: false
+xray_user_backup_root: /backup/xray-users
+xray_user_backup_interval: daily
+xray_user_backup_retention_days: 30
 
 monitoring_server_hosts: non_ru
 monitoring_server_enabled: false

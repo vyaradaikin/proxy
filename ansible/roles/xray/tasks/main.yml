@@ -61,6 +61,51 @@
     group: root
     mode: "0755"
 
+- name: Check Xray clients file
+  stat:
+    path: "{{ xray_clients_path }}"
+  register: xray_clients_file
+
+- name: Initialize Xray clients file
+  copy:
+    dest: "{{ xray_clients_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      [
+        {
+          "id": "{{ xray_client_id }}",
+          "flow": "{{ xray_default_client_flow }}",
+          "email": "{{ xray_default_client_email }}"
+        }
+      ]
+  when: not xray_clients_file.stat.exists
+
+- name: Re-check Xray clients file
+  stat:
+    path: "{{ xray_clients_path }}"
+  register: xray_clients_file
+
+- name: Read Xray clients file
+  slurp:
+    src: "{{ xray_clients_path }}"
+  register: xray_clients_slurp
+  when: xray_clients_file.stat.exists
+
+- name: Configure effective Xray clients from file
+  set_fact:
+    xray_effective_clients: "{{ xray_clients_slurp.content | b64decode | from_json }}"
+  when: xray_clients_file.stat.exists
+
+- name: Configure default effective Xray clients
+  set_fact:
+    xray_effective_clients:
+      - id: "{{ xray_client_id }}"
+        flow: "{{ xray_default_client_flow }}"
+        email: "{{ xray_default_client_email }}"
+  when: not xray_clients_file.stat.exists
+
 - name: Create Xray geo directory
   file:
     path: "{{ xray_geo_dir }}"

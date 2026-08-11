@@ -1,0 +1,10 @@
+---
+- name: Restart Xray user backup timer
+  ansible.builtin.systemd:
+    name: "{{ xray_user_backup_service_name }}.timer"
+    state: restarted
+    daemon_reload: true
+  when:
+    - xray_user_backup_enabled | bool
+    - xray_user_backup_role == 'destination'
+    - not ansible_check_mode

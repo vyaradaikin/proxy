@@ -1,0 +1,73 @@
+---
+- name: Skip Xray user UI outside RU gateway
+  ansible.builtin.meta: end_host
+  when: inventory_hostname not in groups.get('ru', [])
+
+- name: Validate Xray user UI variables
+  ansible.builtin.assert:
+    that:
+      - xray_config_path is defined
+      - xray_clients_path is defined
+      - xray_binary_path is defined
+      - xray_port is defined
+      - xray_sni is defined
+      - xray_reality_public_key is defined
+      - xray_reality_public_key | length > 0
+      - xray_short_id is defined
+      - xray_short_id | length > 0
+      - xray_user_ui_basic_auth_user | length > 0
+      - xray_user_ui_basic_auth_password | length > 0
+    fail_msg: "Missing Xray user UI variables"
+  when: xray_user_ui_enabled | bool
+
+- name: Install Xray user UI packages
+  ansible.builtin.apt:
+    name:
+      - python3
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ monitoring_apt_cache_valid_time | default(3600) }}"
+    install_recommends: false
+  when: xray_user_ui_enabled | bool
+
+- name: Write Xray user UI script
+  ansible.builtin.template:
+    src: xray-user-ui.py.j2
+    dest: "{{ xray_user_ui_path }}"
+    owner: root
+    group: root
+    mode: "0750"
+    validate: python3 -m py_compile %s
+  notify: Restart Xray user UI
+  when: xray_user_ui_enabled | bool
+
+- name: Write Xray user UI environment
+  ansible.builtin.template:
+    src: xray-user-ui.default.j2
+    dest: "{{ xray_user_ui_env_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart Xray user UI
+  when: xray_user_ui_enabled | bool
+
+- name: Write Xray user UI service
+  ansible.builtin.template:
+    src: xray-user-ui.service.j2
+    dest: "/etc/systemd/system/{{ xray_user_ui_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Xray user UI
+  when: xray_user_ui_enabled | bool
+
+- name: Enable Xray user UI
+  ansible.builtin.systemd:
+    name: "{{ xray_user_ui_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - xray_user_ui_enabled | bool
+    - not ansible_check_mode

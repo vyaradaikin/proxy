@@ -1,0 +1,15 @@
+[Unit]
+Description=Xray user UI
+After=network-online.target xray.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile={{ xray_user_ui_env_path }}
+ExecStart={{ xray_user_ui_path }}
+Restart=on-failure
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target

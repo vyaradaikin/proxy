@@ -13,7 +13,7 @@ PLAYBOOK := $(ANSIBLE_ENV) ansible-playbook
 VAULT := $(ANSIBLE_ENV) ansible-vault
 LIMIT_ARGS := $(if $(LIMIT),--limit $(LIMIT),)
 
-.PHONY: help init-local secrets secrets-remote check check-ru check-non-ru check-wg check-tools check-monitoring plan-ru plan-non-ru plan-monitoring apply-ru apply-non-ru apply-wg apply-monitoring verify-ru verify-non-ru speed-ru speed-non-ru clean-generated
+.PHONY: help init-local secrets secrets-remote check check-ru check-non-ru check-wg check-tools check-monitoring check-xray-backup plan-ru plan-non-ru plan-monitoring plan-xray-backup apply-ru apply-non-ru apply-wg apply-monitoring apply-xray-backup verify-ru verify-non-ru speed-ru speed-non-ru clean-generated
 
 help:
 	@echo "Targets:"
@@ -24,10 +24,12 @@ help:
 	@echo "  plan-ru         Dry-run RU gateway"
 	@echo "  plan-non-ru     Dry-run Non-RU exit"
 	@echo "  plan-monitoring Dry-run monitoring"
+	@echo "  plan-xray-backup Dry-run Xray users backup"
 	@echo "  apply-ru        Apply RU gateway"
 	@echo "  apply-non-ru    Apply Non-RU exit"
 	@echo "  apply-wg        Apply WireGuard only"
 	@echo "  apply-monitoring Apply monitoring exporters/server"
+	@echo "  apply-xray-backup Apply Xray users backup"
 	@echo "  verify-ru       Verify RU services and routing"
 	@echo "  verify-non-ru   Verify Non-RU WireGuard and firewall"
 	@echo "  speed-ru        Run WireGuard iperf3 speed test from RU to Non-RU"
@@ -60,7 +62,7 @@ secrets-remote:
 	rm -f $(ANSIBLE_HOME)/generated-vault.yml
 	@echo "Encrypted vault written to ansible/group_vars/all/vault.yml"
 
-check: check-ru check-non-ru check-wg check-tools check-monitoring
+check: check-ru check-non-ru check-wg check-tools check-monitoring check-xray-backup
 
 check-ru:
 	$(PLAYBOOK) --syntax-check ansible/playbooks/ru-gateway.yml
@@ -80,6 +82,9 @@ check-tools:
 check-monitoring:
 	$(PLAYBOOK) --syntax-check ansible/playbooks/monitoring.yml
 
+check-xray-backup:
+	$(PLAYBOOK) --syntax-check ansible/playbooks/xray-user-backup.yml
+
 plan-ru:
 	$(PLAYBOOK) ansible/playbooks/ru-gateway.yml $(LIMIT_ARGS) --check --diff $(VAULT_ARGS)
 
@@ -88,6 +93,9 @@ plan-non-ru:
 
 plan-monitoring:
 	$(PLAYBOOK) ansible/playbooks/monitoring.yml $(LIMIT_ARGS) --check --diff $(VAULT_ARGS)
+
+plan-xray-backup:
+	$(PLAYBOOK) ansible/playbooks/xray-user-backup.yml $(LIMIT_ARGS) --check --diff $(VAULT_ARGS)
 
 apply-ru:
 	$(PLAYBOOK) ansible/playbooks/ru-gateway.yml $(LIMIT_ARGS) $(VAULT_ARGS)
@@ -100,6 +108,9 @@ apply-wg:
 
 apply-monitoring:
 	$(PLAYBOOK) ansible/playbooks/monitoring.yml $(LIMIT_ARGS) $(VAULT_ARGS)
+
+apply-xray-backup:
+	$(PLAYBOOK) ansible/playbooks/xray-user-backup.yml $(LIMIT_ARGS) $(VAULT_ARGS)
 
 verify-ru:
 	$(PLAYBOOK) ansible/playbooks/verify.yml --limit ru $(VAULT_ARGS)

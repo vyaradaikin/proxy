@@ -8,10 +8,13 @@
       "protocol": "vless",
       "settings": {
         "clients": [
+{% for client in xray_effective_clients %}
           {
-            "id": "{{ xray_client_id }}",
-            "flow": "xtls-rprx-vision"
-          }
+            "id": "{{ client.id }}"{% if client.flow is defined and client.flow | length > 0 %},
+            "flow": "{{ client.flow }}"{% endif %}{% if client.email is defined and client.email | length > 0 %},
+            "email": "{{ client.email }}"{% endif %}
+          }{% if not loop.last %},{% endif %}
+{% endfor %}
         ],
         "decryption": "none"
       },

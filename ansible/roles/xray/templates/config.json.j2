@@ -52,6 +52,18 @@
         "outboundTag": "{{ xray_direct_outbound_tag }}"
       },
 {% endif %}
+{% if xray_client_encrypted_dns_direct_enabled | bool %}
+      {
+        "type": "field",
+        "domain": {{ xray_client_encrypted_dns_domains | to_json }},
+        "outboundTag": "{{ xray_direct_outbound_tag }}"
+      },
+      {
+        "type": "field",
+        "ip": {{ xray_client_encrypted_dns_ips | to_json }},
+        "outboundTag": "{{ xray_direct_outbound_tag }}"
+      },
+{% endif %}
       {
         "type": "field",
         "domain": {{ xray_ru_domains | to_json }},

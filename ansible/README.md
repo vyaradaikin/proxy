@@ -139,8 +139,10 @@ WireGuard, but sends configured RU/Yandex zones to RU-side upstream resolvers.
 requests made by the Xray service user to the local split resolver.
 
 Encrypted client DNS on `443`/`853` cannot be transparently split by `dnsmasq`
-without terminating TLS. Disable Private DNS/DoH in the client profile when a
-phone insists on Google DNS and RU services still behave strangely.
+without terminating TLS. Known encrypted DNS providers are routed through
+`direct` by default, so they at least see the RU source IP. Disable Private
+DNS/DoH in the client profile when a phone insists on Google DNS and RU services
+still behave strangely.
 
 If a specific Russian service still leaves through the Non-RU tunnel, extend the
 lists in `ansible/group_vars/all/local.yml`:

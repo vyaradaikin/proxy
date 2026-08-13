@@ -28,6 +28,8 @@ XRAY_PUBLIC_KEY = os.environ.get("XRAY_PUBLIC_KEY", "")
 XRAY_SHORT_ID = os.environ.get("XRAY_SHORT_ID", "")
 XRAY_DEFAULT_FLOW = os.environ.get("XRAY_DEFAULT_FLOW", "xtls-rprx-vision")
 XRAY_FINGERPRINT = os.environ.get("XRAY_FINGERPRINT", "chrome")
+XRAY_CONFIG_MODE = 0o644
+XRAY_CLIENTS_MODE = 0o600
 
 
 def load_json(path, default):
@@ -91,11 +93,12 @@ def save_clients_and_reload(clients):
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(config, stream, indent=2)
             stream.write("\n")
+        os.chmod(tmp_config, XRAY_CONFIG_MODE)
         subprocess.run([XRAY_BINARY_PATH, "run", "-test", "-config", tmp_config], check=True, capture_output=True, text=True)
         backup_path = XRAY_CONFIG_PATH + ".before-user-ui-" + time.strftime("%Y%m%d%H%M%S")
         shutil.copy2(XRAY_CONFIG_PATH, backup_path)
         os.replace(tmp_config, XRAY_CONFIG_PATH)
-        atomic_write_json(XRAY_CLIENTS_PATH, clients)
+        atomic_write_json(XRAY_CLIENTS_PATH, clients, XRAY_CLIENTS_MODE)
         subprocess.run(["systemctl", "restart", "xray"], check=True, capture_output=True, text=True)
     finally:
         if os.path.exists(tmp_config):

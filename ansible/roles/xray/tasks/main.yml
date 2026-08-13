@@ -136,6 +136,14 @@
     validate: "{{ xray_binary_path }} run -test -config %s"
   notify: Restart Xray
 
+- name: Ensure Xray can read rendered configuration
+  file:
+    path: "{{ xray_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Xray
+
 - name: Write Xray systemd service
   template:
     src: xray.service.j2

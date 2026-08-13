@@ -154,7 +154,8 @@ own resolver, not Xray client split routing.
 The RU gateway can run a small localhost-only UI for adding and removing VLESS
 Reality users. It edits `xray_clients_path`, validates the generated Xray config,
 and restarts Xray after each change. This keeps UI-created users compatible with
-future Ansible runs.
+future Ansible runs. For each user, the UI shows both the VLESS Reality URL and
+a QR code that can be scanned by mobile clients.
 
 Enable it in `ansible/group_vars/all/local.yml`:
 

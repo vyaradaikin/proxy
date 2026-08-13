@@ -2,6 +2,8 @@
 import html
 import json
 import os
+import threading
+import time
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -10,6 +12,13 @@ BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 API_URL = os.environ.get("TELEGRAM_API_URL", "{{ monitoring_telegram_api_url }}").rstrip("/")
 PARSE_MODE = os.environ.get("TELEGRAM_PARSE_MODE", "{{ monitoring_telegram_parse_mode }}")
+DEAD_MAN_SWITCH_ALERTNAME = os.environ.get("DEAD_MAN_SWITCH_ALERTNAME", "ProxyAlertingDeadManSwitch")
+DEAD_MAN_SWITCH_TIMEOUT_SECONDS = int(os.environ.get("DEAD_MAN_SWITCH_TIMEOUT_SECONDS", "90"))
+DEAD_MAN_SWITCH_CHECK_INTERVAL_SECONDS = int(os.environ.get("DEAD_MAN_SWITCH_CHECK_INTERVAL_SECONDS", "10"))
+
+heartbeat_lock = threading.Lock()
+heartbeat_last_seen = time.time()
+heartbeat_missing = False
 
 
 def send_message(text):
@@ -47,12 +56,66 @@ def render_alert(alert):
     )
 
 
+def render_dead_man_switch_missing(age):
+    return "\n".join(
+        [
+            f"<b>FIRING {html.escape(DEAD_MAN_SWITCH_ALERTNAME)}Missing</b>",
+            "severity: <code>critical</code>",
+            "instance: <code>alertmanager-telegram-relay</code>",
+            "Alerting heartbeat stopped.",
+            f"No {html.escape(DEAD_MAN_SWITCH_ALERTNAME)} webhook has been received for {age:.0f} seconds.",
+        ]
+    )
+
+
+def render_dead_man_switch_recovered():
+    return "\n".join(
+        [
+            f"<b>RESOLVED {html.escape(DEAD_MAN_SWITCH_ALERTNAME)}Missing</b>",
+            "severity: <code>critical</code>",
+            "instance: <code>alertmanager-telegram-relay</code>",
+            "Alerting heartbeat resumed.",
+            f"{html.escape(DEAD_MAN_SWITCH_ALERTNAME)} webhooks are being received again.",
+        ]
+    )
+
+
+def observe_dead_man_switch():
+    global heartbeat_last_seen, heartbeat_missing
+    recovered = False
+    with heartbeat_lock:
+        heartbeat_last_seen = time.time()
+        if heartbeat_missing:
+            heartbeat_missing = False
+            recovered = True
+    if recovered:
+        send_message(render_dead_man_switch_recovered())
+
+
+def watchdog():
+    global heartbeat_missing
+    while True:
+        time.sleep(DEAD_MAN_SWITCH_CHECK_INTERVAL_SECONDS)
+        message = None
+        with heartbeat_lock:
+            age = time.time() - heartbeat_last_seen
+            if age > DEAD_MAN_SWITCH_TIMEOUT_SECONDS and not heartbeat_missing:
+                heartbeat_missing = True
+                message = render_dead_man_switch_missing(age)
+        if message:
+            send_message(message)
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("content-length", "0"))
         payload = json.loads(self.rfile.read(length) or b"{}")
         alerts = payload.get("alerts", [])
         for alert in alerts:
+            labels = alert.get("labels", {})
+            if labels.get("alertname") == DEAD_MAN_SWITCH_ALERTNAME:
+                observe_dead_man_switch()
+                continue
             send_message(render_alert(alert))
         self.send_response(204)
         self.end_headers()
@@ -62,5 +125,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    threading.Thread(target=watchdog, daemon=True).start()
     server = HTTPServer(("{{ monitoring_telegram_relay_host }}", {{ monitoring_telegram_relay_port }}), Handler)
     server.serve_forever()

@@ -96,6 +96,8 @@ monitoring_alert_speedtest_min_bps: 3000000
 monitoring_alert_speedtest_max_age_seconds: 28800
 monitoring_dead_man_switch_enabled: true
 monitoring_dead_man_switch_repeat_interval: 30s
+monitoring_dead_man_switch_timeout_seconds: 90
+monitoring_dead_man_switch_check_interval_seconds: 10
 monitoring_telegram_enabled: false
 monitoring_telegram_bot_token: ""
 monitoring_telegram_chat_id: ""

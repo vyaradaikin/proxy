@@ -1,4 +1,17 @@
 groups:
+{% if monitoring_dead_man_switch_enabled | bool %}
+  - name: proxy-alerting
+    rules:
+      - alert: ProxyAlertingDeadManSwitch
+        expr: vector(1)
+        labels:
+          severity: heartbeat
+          instance: "{{ inventory_hostname }}"
+        annotations:
+          summary: "Alerting dead man switch from {{ inventory_hostname }}"
+          description: "This heartbeat alert should be delivered every {{ monitoring_dead_man_switch_repeat_interval }} while Prometheus, Alertmanager, and notification delivery are healthy."
+
+{% endif %}
   - name: proxy-node
     rules:
       - alert: ProxyInstanceDown

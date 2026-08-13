@@ -64,6 +64,10 @@ xray_user_backup_interval: daily
 monitoring_server_hosts: non_ru
 monitoring_server_enabled: false
 monitoring_exporter_enabled: false
+monitoring_dead_man_switch_enabled: true
+monitoring_dead_man_switch_repeat_interval: 30s
+monitoring_dead_man_switch_timeout_seconds: 90
+monitoring_dead_man_switch_check_interval_seconds: 10
 monitoring_telegram_enabled: false
 # For a dedicated monitoring VM, allow node_exporter scrapes only from it.
 monitoring_scrape_source_ips: []

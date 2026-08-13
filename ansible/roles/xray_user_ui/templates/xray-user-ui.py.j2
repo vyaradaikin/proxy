@@ -148,7 +148,7 @@ def page(message="", error=""):
             <td><strong>{html.escape(client.get("email", ""))}</strong><div class="muted">{html.escape(client["id"])}</div></td>
             <td>{html.escape(client.get("flow", ""))}</td>
             <td><input readonly value="{html.escape(link)}" onclick="this.select()"></td>
-            <td><img class="qr" src="/qr?id={client_id}" alt="QR code for {html.escape(client.get("email") or client["id"])}"></td>
+            <td><button class="qr-button" type="button" data-qr-src="/qr?id={client_id}" data-qr-label="{html.escape(client.get("email") or client["id"])}"><img class="qr" src="/qr?id={client_id}" alt="QR code for {html.escape(client.get("email") or client["id"])}"></button></td>
             <td>
               <form method="post" action="/delete">
                 <input type="hidden" name="id" value="{client_id}">
@@ -207,6 +207,15 @@ def page(message="", error=""):
     th {{ color: var(--muted); font-size: 12px; font-weight: 650; }}
     td:nth-child(3) {{ width: 48%; }}
     .qr {{ display: block; width: 112px; height: 112px; background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px; }}
+    .qr-button {{ display: block; border: 0; background: transparent; padding: 0; cursor: zoom-in; }}
+    .qr-button:focus-visible {{ outline: 2px solid var(--ok); outline-offset: 3px; }}
+    .qr-modal {{ position: fixed; inset: 0; z-index: 10; display: none; place-items: center; padding: 24px; background: rgba(0, 0, 0, 0.72); }}
+    .qr-modal.open {{ display: grid; }}
+    .qr-dialog {{ width: min(92vw, 560px); background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 16px; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35); }}
+    .qr-dialog-header {{ display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }}
+    .qr-dialog-title {{ min-width: 0; font-size: 15px; font-weight: 650; overflow-wrap: anywhere; }}
+    .qr-close {{ flex: 0 0 auto; min-width: 38px; height: 38px; padding: 0; font-size: 22px; line-height: 1; }}
+    .qr-large {{ display: block; width: min(82vw, 500px); height: min(82vw, 500px); margin: 0 auto; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }}
     .notice {{ margin-top: 14px; border-radius: 6px; padding: 10px 12px; }}
     .notice.ok {{ border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); color: var(--ok); }}
     .notice.bad {{ border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent); color: var(--bad); }}
@@ -236,6 +245,52 @@ def page(message="", error=""):
       </div>
     </section>
   </main>
+  <div class="qr-modal" id="qr-modal" aria-hidden="true">
+    <div class="qr-dialog" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+      <div class="qr-dialog-header">
+        <div class="qr-dialog-title" id="qr-modal-title">QR code</div>
+        <button class="qr-close" type="button" aria-label="Close QR code">&times;</button>
+      </div>
+      <img class="qr-large" id="qr-modal-image" alt="">
+    </div>
+  </div>
+  <script>
+    const modal = document.getElementById("qr-modal");
+    const modalImage = document.getElementById("qr-modal-image");
+    const modalTitle = document.getElementById("qr-modal-title");
+    const closeButton = document.querySelector(".qr-close");
+
+    function closeQrModal() {{
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+      modalImage.removeAttribute("src");
+      modalImage.removeAttribute("alt");
+    }}
+
+    document.querySelectorAll(".qr-button").forEach((button) => {{
+      button.addEventListener("click", () => {{
+        const label = button.dataset.qrLabel || "client";
+        modalImage.src = button.dataset.qrSrc;
+        modalImage.alt = `QR code for ${{label}}`;
+        modalTitle.textContent = label;
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        closeButton.focus();
+      }});
+    }});
+
+    closeButton.addEventListener("click", closeQrModal);
+    modal.addEventListener("click", (event) => {{
+      if (event.target === modal) {{
+        closeQrModal();
+      }}
+    }});
+    document.addEventListener("keydown", (event) => {{
+      if (event.key === "Escape" && modal.classList.contains("open")) {{
+        closeQrModal();
+      }}
+    }});
+  </script>
 </body>
 </html>"""
 

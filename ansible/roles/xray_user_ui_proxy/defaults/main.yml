@@ -1,0 +1,15 @@
+---
+xray_user_ui_public_enabled: false
+xray_user_ui_public_domain: ""
+xray_user_ui_public_tls_enabled: true
+xray_user_ui_public_letsencrypt_email: ""
+xray_user_ui_public_basic_auth_enabled: true
+xray_user_ui_public_basic_auth_user: "{{ xray_user_ui_basic_auth_user | default('admin') }}"
+xray_user_ui_public_htpasswd_path: /etc/nginx/xray-user-ui.htpasswd
+xray_user_ui_public_acme_root: /var/www/letsencrypt
+xray_user_ui_public_nginx_site_path: /etc/nginx/sites-available/xray-user-ui.conf
+xray_user_ui_public_nginx_site_link: /etc/nginx/sites-enabled/xray-user-ui.conf
+xray_user_ui_public_upstream_scheme: http
+xray_user_ui_public_upstream_host: "{{ wg_ru_ip }}"
+xray_user_ui_public_upstream_port: "{{ xray_user_ui_port }}"
+xray_user_ui_public_proxy_read_timeout: 60s

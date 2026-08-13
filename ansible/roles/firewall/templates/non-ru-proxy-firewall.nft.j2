@@ -27,6 +27,12 @@ table inet proxy_firewall {
 {% if wg_transport == 'udp2raw' and wg_udp2raw_raw_mode == 'icmp' %}
     ip protocol icmp accept
 {% endif %}
+{% if xray_user_ui_public_enabled | default(false) | bool %}
+    tcp dport 80 accept
+{% if xray_user_ui_public_tls_enabled | default(true) | bool %}
+    tcp dport 443 accept
+{% endif %}
+{% endif %}
 {% for port in firewall_non_ru_tcp_allow_from_ru + firewall_non_ru_extra_tcp_ports %}
     ip saddr {{ ru_public_ip }} tcp dport {{ port }} accept
 {% endfor %}

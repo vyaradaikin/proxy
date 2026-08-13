@@ -59,6 +59,9 @@ table inet filter {
 {% if wg_speedtest_enabled | default(false) | bool %}
     iifname "{{ wg_interface }}" ip saddr {{ wg_non_ru_ip }} tcp dport {{ wg_speedtest_port }} accept
 {% endif %}
+{% if xray_user_ui_public_enabled | default(false) | bool %}
+    iifname "{{ wg_interface }}" ip saddr {{ wg_non_ru_ip }} tcp dport {{ xray_user_ui_port }} accept
+{% endif %}
 {% if monitoring_exporter_enabled | default(false) | bool %}
 {% if monitoring_scrape_source_ips | default([]) | length > 0 %}
 {% for source_ip in monitoring_scrape_source_ips %}

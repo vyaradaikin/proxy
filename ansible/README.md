@@ -178,6 +178,45 @@ ssh -L 19095:127.0.0.1:19095 ruvpn
 
 Then browse to `http://127.0.0.1:19095`.
 
+### Public Xray User UI through Non-RU
+
+The Xray user UI can also be exposed through the Non-RU entrypoint while the UI
+itself still runs on RU. Nginx on Non-RU terminates HTTP/HTTPS and proxies the
+request through WireGuard to `wg_ru_ip:xray_user_ui_port`. RU firewall allows the
+UI port only from `wg_non_ru_ip`, so replies go back through the tunnel.
+
+Example:
+
+```yaml
+xray_user_ui_enabled: true
+xray_user_ui_public_enabled: true
+xray_user_ui_public_domain: xray.weirdexperiments.de
+xray_user_ui_public_letsencrypt_email: admin@example.com
+xray_user_ui_public_basic_auth_enabled: true
+```
+
+By default, enabling the public proxy makes the RU UI listen on `wg_ru_ip`
+instead of `127.0.0.1`. The Non-RU proxy upstream is:
+
+```yaml
+xray_user_ui_public_upstream_host: "{{ wg_ru_ip }}"
+xray_user_ui_public_upstream_port: "{{ xray_user_ui_port }}"
+```
+
+The public proxy uses the same Basic Auth credentials as the RU UI, because the
+browser's `Authorization` header is forwarded to the upstream UI:
+
+```yaml
+xray_user_ui_basic_auth_password: "CHANGEME"
+```
+
+Apply both sides after enabling it:
+
+```bash
+make apply-ru
+make apply-non-ru
+```
+
 ## Optional Xray User Backups
 
 Xray user configuration can be backed up daily from the monitoring VM. The

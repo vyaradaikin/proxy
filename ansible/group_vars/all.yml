@@ -65,8 +65,14 @@ xray_extra_direct_ips: []
 
 xray_user_ui_enabled: false
 xray_user_ui_port: 19095
-xray_user_ui_listen_address: "127.0.0.1"
+xray_user_ui_listen_address: "{{ (xray_user_ui_public_enabled | default(false) | bool) | ternary(wg_ru_ip, '127.0.0.1') }}"
 xray_user_ui_basic_auth_user: admin
+xray_user_ui_public_enabled: false
+xray_user_ui_public_domain: ""
+xray_user_ui_public_tls_enabled: true
+xray_user_ui_public_letsencrypt_email: ""
+xray_user_ui_public_basic_auth_enabled: true
+xray_user_ui_public_basic_auth_user: "{{ xray_user_ui_basic_auth_user }}"
 
 xray_user_backup_enabled: false
 xray_user_backup_root: /backup/xray-users

@@ -1,7 +1,7 @@
 ---
 xray_user_ui_enabled: false
 xray_user_ui_port: 19095
-xray_user_ui_listen_address: "127.0.0.1"
+xray_user_ui_listen_address: "{{ (xray_user_ui_public_enabled | default(false) | bool) | ternary(wg_ru_ip | default('127.0.0.1'), '127.0.0.1') }}"
 xray_user_ui_service_name: xray-user-ui
 xray_user_ui_path: /usr/local/bin/xray-user-ui
 xray_user_ui_env_path: /etc/default/xray-user-ui

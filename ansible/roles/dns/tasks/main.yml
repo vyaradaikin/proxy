@@ -4,7 +4,6 @@
     that:
       - wg_non_ru_ip is defined
       - dns_non_ru_forwarder_enabled is defined
-      - dns_ru_split_forwarder_enabled is defined
       - dns_ru_manage_resolv_conf is defined
     fail_msg: "Missing DNS variables"
 
@@ -39,35 +38,23 @@
     - dns_non_ru_forwarder_enabled | bool
     - not ansible_check_mode
 
-- name: Install RU split DNS forwarder
-  apt:
-    name: dnsmasq
-    state: present
-    update_cache: false
+- name: Remove legacy RU split DNS forwarder config
+  file:
+    path: "{{ dns_ru_legacy_split_config_path }}"
+    state: absent
+  register: dns_ru_legacy_split_config
   when:
     - inventory_hostname in groups.get('ru', [])
-    - dns_ru_split_forwarder_enabled | bool
+    - dns_ru_cleanup_legacy_split_forwarder | bool
 
-- name: Write RU split DNS forwarder config
-  template:
-    src: dnsmasq-ru-split.conf.j2
-    dest: "{{ dns_ru_split_config_path }}"
-    owner: root
-    group: root
-    mode: "0644"
-  notify: Restart dnsmasq
-  when:
-    - inventory_hostname in groups.get('ru', [])
-    - dns_ru_split_forwarder_enabled | bool
-
-- name: Enable RU split DNS forwarder
+- name: Stop legacy RU split DNS forwarder
   systemd:
     name: dnsmasq
-    enabled: true
-    state: started
+    enabled: false
+    state: stopped
   when:
     - inventory_hostname in groups.get('ru', [])
-    - dns_ru_split_forwarder_enabled | bool
+    - dns_ru_cleanup_legacy_split_forwarder | bool
     - not ansible_check_mode
 
 - name: Write RU resolver config

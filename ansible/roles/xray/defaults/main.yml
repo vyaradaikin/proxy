@@ -15,25 +15,5 @@ xray_sniffing_dest_override:
   - tls
   - quic
 xray_sniffing_route_only: false
-xray_client_dns_direct_enabled: true
-xray_client_dns_direct_ports: "53,853"
-xray_client_encrypted_dns_direct_enabled: true
-xray_client_encrypted_dns_domains:
-  - dns.google
-  - dns64.dns.google
-  - cloudflare-dns.com
-  - one.one.one.one
-  - security.cloudflare-dns.com
-  - family.cloudflare-dns.com
-  - dns.quad9.net
-  - dns.adguard-dns.com
-  - unfiltered.adguard-dns.com
-xray_client_encrypted_dns_ips:
-  - 8.8.8.8/32
-  - 8.8.4.4/32
-  - 1.1.1.1/32
-  - 1.0.0.1/32
-  - 9.9.9.9/32
-  - 149.112.112.112/32
 xray_extra_direct_domains: []
 xray_extra_direct_ips: []

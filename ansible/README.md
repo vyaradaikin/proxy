@@ -118,32 +118,6 @@ Xray inbound sniffing is enabled by default for `http`, `tls`, and `quic`.
 Without it, many clients send only already-resolved destination IPs to Xray, so
 domain rules such as `.ru` cannot match reliably.
 
-Client DNS ports `53` and `853` are routed through `direct` by default. This
-helps phones that keep using Google DNS or Private DNS through the tunnel get
-answers from the RU side before connecting to RU-local services.
-
-For stricter DNS control, enable the RU split DNS forwarder:
-
-```yaml
-dns_non_ru_forwarder_enabled: true
-dns_ru_split_forwarder_enabled: true
-dns_ru_intercept_xray_dns_enabled: true
-dns_ru_manage_resolv_conf: true
-dns_ru_nameservers:
-  - 127.0.0.1
-```
-
-RU `dnsmasq` then forwards normal queries to the Non-RU DNS forwarder over
-WireGuard, but sends configured RU/Yandex zones to RU-side upstream resolvers.
-`dns_ru_intercept_xray_dns_enabled` transparently redirects plain DNS/53
-requests made by the Xray service user to the local split resolver.
-
-Encrypted client DNS on `443`/`853` cannot be transparently split by `dnsmasq`
-without terminating TLS. Known encrypted DNS providers are routed through
-`direct` by default, so they at least see the RU source IP. Disable Private
-DNS/DoH in the client profile when a phone insists on Google DNS and RU services
-still behave strangely.
-
 If a specific Russian service still leaves through the Non-RU tunnel, extend the
 lists in `ansible/group_vars/all/local.yml`:
 
@@ -151,11 +125,6 @@ lists in `ansible/group_vars/all/local.yml`:
 xray_ru_domains:
   - geosite:category-ru
   - geosite:yandex
-  - domain:ya.ru
-  - domain:yandex.ru
-  - domain:yandex.net
-  - domain:yastatic.net
-  - domain:yastat.net
   - regexp:.*\.ru$
   - regexp:.*\.su$
   - regexp:.*\.xn--p1ai$
@@ -174,6 +143,11 @@ DNS, NTP, or similar local maintenance traffic, the firewall excludes
 user in this list and make sure `xray_user` matches the actual systemd service
 user, otherwise Xray `direct` outbound traffic will be marked and sent through
 the Non-RU policy routing table.
+
+For RU host maintenance traffic such as apt, DNS, and NTP, keep
+`dns_non_ru_forwarder_enabled` and `dns_ru_manage_resolv_conf` enabled with
+`dns_ru_nameservers` pointing at `wg_non_ru_ip`. This affects the RU server's
+own resolver, not Xray client split routing.
 
 ## Optional Xray User UI
 

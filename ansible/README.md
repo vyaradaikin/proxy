@@ -406,6 +406,19 @@ ssh -L 19094:127.0.0.1:19094 monitoring01
 
 Then browse to `http://127.0.0.1:19094`.
 
+Alert delivery has a built-in dead man switch alert enabled by default:
+
+```yaml
+monitoring_dead_man_switch_enabled: true
+monitoring_dead_man_switch_repeat_interval: 30s
+```
+
+`ProxyAlertingDeadManSwitch` is intentionally always firing and has a dedicated
+Alertmanager route, so Telegram should receive a heartbeat notification every
+30 seconds while Prometheus, Alertmanager, and the notification relay are
+working. Disable it or increase the interval after validating alert delivery if
+the heartbeat is too noisy.
+
 To expose the UI through a public domain, enable the Nginx reverse proxy:
 
 ```yaml

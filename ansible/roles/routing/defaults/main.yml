@@ -14,6 +14,8 @@ routing_ru_service_egress_tcp_ports:
 routing_ru_service_egress_udp_ports:
   - 53
   - 123
+routing_ru_service_egress_excluded_users:
+  - "{{ xray_user | default('nobody') }}"
 routing_ru_service_egress_excluded_ipv4_cidrs:
   - 0.0.0.0/8
   - 10.0.0.0/8

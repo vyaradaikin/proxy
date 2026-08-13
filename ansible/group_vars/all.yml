@@ -41,14 +41,27 @@ xray_config_path: /usr/local/etc/xray/config.json
 xray_clients_path: /usr/local/etc/xray/clients.json
 xray_binary_path: /usr/local/bin/xray
 xray_geo_dir: /usr/local/share/xray
-xray_user: nobody
+xray_user: xray
 xray_domain_strategy: IPIfNonMatch
+xray_sniffing_enabled: true
+xray_sniffing_dest_override:
+  - http
+  - tls
+  - quic
+xray_sniffing_route_only: false
 xray_default_outbound_tag: non_ru
 xray_direct_outbound_tag: direct
 xray_ru_domains:
   - geosite:category-ru
+  - geosite:yandex
+  - regexp:.*\.ru$
+  - regexp:.*\.su$
+  - regexp:.*\.xn--p1ai$
 xray_ru_ips:
   - geoip:ru
+  - geoip:private
+xray_extra_direct_domains: []
+xray_extra_direct_ips: []
 
 xray_user_ui_enabled: false
 xray_user_ui_port: 19095
@@ -101,6 +114,8 @@ routing_ru_service_egress_tcp_ports:
 routing_ru_service_egress_udp_ports:
   - 53
   - 123
+routing_ru_service_egress_excluded_users:
+  - "{{ xray_user }}"
 routing_ru_service_egress_excluded_ipv4_cidrs:
   - 0.0.0.0/8
   - 10.0.0.0/8
@@ -124,6 +139,8 @@ dns_non_ru_forwarder_enabled: false
 dns_non_ru_bind_ip: "{{ wg_non_ru_ip }}"
 dns_non_ru_listen_port: 53
 dns_non_ru_filter_aaaa: true
+dns_ru_cleanup_legacy_split_forwarder: true
+dns_ru_legacy_split_config_path: /etc/dnsmasq.d/proxy-split.conf
 dns_ru_manage_resolv_conf: false
 dns_ru_nameservers:
   - "{{ wg_non_ru_ip }}"

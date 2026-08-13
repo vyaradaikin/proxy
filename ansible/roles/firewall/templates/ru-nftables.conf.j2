@@ -30,6 +30,10 @@ table inet filter {
     type route hook output priority mangle;
     policy accept;
 
+{% set service_egress_excluded_users = routing_ru_service_egress_excluded_users | select | list %}
+{% if service_egress_excluded_users | length > 0 %}
+    meta skuid { {{ service_egress_excluded_users | join(', ') }} } return
+{% endif %}
     meta nfproto ipv4 ip daddr @service_egress_excluded_ipv4_cidrs return
 {% if service_egress_excluded_ipv4_addresses | length > 0 %}
     meta nfproto ipv4 ip daddr @service_egress_excluded_ipv4_addresses return

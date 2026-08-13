@@ -19,6 +19,11 @@
       - xray_client_id | length > 0
       - xray_reality_private_key is defined
       - xray_reality_private_key | length > 0
+      - xray_sniffing_enabled is defined
+      - xray_sniffing_dest_override is defined
+      - xray_sniffing_route_only is defined
+      - xray_extra_direct_domains is defined
+      - xray_extra_direct_ips is defined
       - routing_mark is defined
     fail_msg: "Missing Xray Reality variables; provide xray_client_id and xray_reality_private_key through vault/inventory/extra-vars"
 
@@ -52,6 +57,13 @@
     that:
       - xray_binary_after.stat.exists
     fail_msg: "Xray binary is missing; set xray_install=true or install Xray before running this role"
+
+- name: Ensure Xray service user exists
+  user:
+    name: "{{ xray_user }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
 
 - name: Create Xray configuration directory
   file:

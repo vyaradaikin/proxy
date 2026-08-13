@@ -38,6 +38,25 @@
     - dns_non_ru_forwarder_enabled | bool
     - not ansible_check_mode
 
+- name: Remove legacy RU split DNS forwarder config
+  file:
+    path: "{{ dns_ru_legacy_split_config_path }}"
+    state: absent
+  register: dns_ru_legacy_split_config
+  when:
+    - inventory_hostname in groups.get('ru', [])
+    - dns_ru_cleanup_legacy_split_forwarder | bool
+
+- name: Stop legacy RU split DNS forwarder
+  systemd:
+    name: dnsmasq
+    enabled: false
+    state: stopped
+  when:
+    - inventory_hostname in groups.get('ru', [])
+    - dns_ru_cleanup_legacy_split_forwarder | bool
+    - not ansible_check_mode
+
 - name: Write RU resolver config
   template:
     src: resolv.conf.j2

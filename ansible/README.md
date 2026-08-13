@@ -107,6 +107,48 @@ Client applications connect to the RU gateway with VLESS Reality over TCP. The c
 
 This deployment is IPv4-only by design. In clients such as Streisand Desktop, disable IPv6 for the profile or application tunnel. Leaving IPv6 enabled can make the client try unreachable IPv6 routes or DNS answers, which may look like a broken Reality/Xray profile even when the server is healthy.
 
+## Xray Split Routing
+
+The RU gateway sends Russian and private destinations through the local `direct`
+outbound, while the default outbound is marked for the Non-RU WireGuard policy
+routing table. The default direct rules include `geosite:category-ru`, common
+RU TLD suffixes, `geosite:yandex`, `geoip:ru`, and `geoip:private`.
+
+Xray inbound sniffing is enabled by default for `http`, `tls`, and `quic`.
+Without it, many clients send only already-resolved destination IPs to Xray, so
+domain rules such as `.ru` cannot match reliably.
+
+If a specific Russian service still leaves through the Non-RU tunnel, extend the
+lists in `ansible/group_vars/all/local.yml`:
+
+```yaml
+xray_ru_domains:
+  - geosite:category-ru
+  - geosite:yandex
+  - regexp:.*\.ru$
+  - regexp:.*\.su$
+  - regexp:.*\.xn--p1ai$
+  - domain:example.ru
+xray_ru_ips:
+  - geoip:ru
+  - geoip:private
+  - 203.0.113.20/32
+xray_extra_direct_ips:
+  - 85.233.74.0/24
+```
+
+When `routing_ru_service_egress_enabled` is enabled for server-side updates,
+DNS, NTP, or similar local maintenance traffic, the firewall excludes
+`routing_ru_service_egress_excluded_users` from marking. Keep the Xray service
+user in this list and make sure `xray_user` matches the actual systemd service
+user, otherwise Xray `direct` outbound traffic will be marked and sent through
+the Non-RU policy routing table.
+
+For RU host maintenance traffic such as apt, DNS, and NTP, keep
+`dns_non_ru_forwarder_enabled` and `dns_ru_manage_resolv_conf` enabled with
+`dns_ru_nameservers` pointing at `wg_non_ru_ip`. This affects the RU server's
+own resolver, not Xray client split routing.
+
 ## Optional Xray User UI
 
 The RU gateway can run a small localhost-only UI for adding and removing VLESS

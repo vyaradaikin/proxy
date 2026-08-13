@@ -5,6 +5,9 @@ dns_non_ru_listen_port: 53
 dns_non_ru_config_path: /etc/dnsmasq.d/proxy-egress.conf
 dns_non_ru_filter_aaaa: true
 
+dns_ru_cleanup_legacy_split_forwarder: true
+dns_ru_legacy_split_config_path: /etc/dnsmasq.d/proxy-split.conf
+
 dns_ru_manage_resolv_conf: false
 dns_ru_resolv_conf_path: /etc/resolv.conf
 dns_ru_nameservers:

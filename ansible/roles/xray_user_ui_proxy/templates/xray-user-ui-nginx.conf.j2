@@ -1,0 +1,56 @@
+server {
+  listen 80;
+  server_name {{ xray_user_ui_public_domain }};
+
+  location /.well-known/acme-challenge/ {
+    root {{ xray_user_ui_public_acme_root }};
+  }
+
+{% if xray_user_ui_public_tls_enabled | bool and xray_user_ui_public_certificate_exists | bool %}
+  location / {
+    return 301 https://$host$request_uri;
+  }
+{% else %}
+  location / {
+{% if xray_user_ui_public_basic_auth_enabled | bool %}
+    auth_basic "Xray Users";
+    auth_basic_user_file {{ xray_user_ui_public_htpasswd_path }};
+{% endif %}
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout {{ xray_user_ui_public_proxy_read_timeout }};
+    proxy_pass {{ xray_user_ui_public_upstream_scheme }}://{{ xray_user_ui_public_upstream_host }}:{{ xray_user_ui_public_upstream_port }};
+  }
+{% endif %}
+}
+
+{% if xray_user_ui_public_tls_enabled | bool and xray_user_ui_public_certificate_exists | bool %}
+server {
+  listen 443 ssl http2;
+  server_name {{ xray_user_ui_public_domain }};
+
+  ssl_certificate /etc/letsencrypt/live/{{ xray_user_ui_public_domain }}/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/{{ xray_user_ui_public_domain }}/privkey.pem;
+  ssl_session_cache shared:xray_user_ui_ssl:10m;
+  ssl_session_timeout 1d;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_prefer_server_ciphers off;
+
+  location / {
+{% if xray_user_ui_public_basic_auth_enabled | bool %}
+    auth_basic "Xray Users";
+    auth_basic_user_file {{ xray_user_ui_public_htpasswd_path }};
+{% endif %}
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout {{ xray_user_ui_public_proxy_read_timeout }};
+    proxy_pass {{ xray_user_ui_public_upstream_scheme }}://{{ xray_user_ui_public_upstream_host }}:{{ xray_user_ui_public_upstream_port }};
+  }
+}
+{% endif %}

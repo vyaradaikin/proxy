@@ -1,0 +1,172 @@
+---
+- name: Skip Xray user UI public proxy outside Non-RU entrypoint
+  ansible.builtin.meta: end_host
+  when: inventory_hostname not in groups.get('non_ru', [])
+
+- name: Validate Xray user UI public proxy variables
+  ansible.builtin.assert:
+    that:
+      - xray_user_ui_enabled | bool
+      - xray_user_ui_public_domain | length > 0
+      - xray_user_ui_public_upstream_host | length > 0
+      - xray_user_ui_public_upstream_port | int > 0
+      - not xray_user_ui_public_tls_enabled | bool or xray_user_ui_public_letsencrypt_email | length > 0
+      - not xray_user_ui_public_basic_auth_enabled | bool or xray_user_ui_public_basic_auth_user | length > 0
+      - not xray_user_ui_public_basic_auth_enabled | bool or xray_user_ui_basic_auth_password | length > 0
+    fail_msg: "Set Xray user UI public proxy variables: domain, upstream, TLS email, and Basic Auth credentials"
+  when: xray_user_ui_public_enabled | bool
+
+- name: Install Xray user UI public proxy packages
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - apache2-utils
+      - certbot
+    state: present
+    update_cache: true
+    cache_valid_time: "{{ monitoring_apt_cache_valid_time | default(3600) }}"
+    install_recommends: false
+  when: xray_user_ui_public_enabled | bool
+
+- name: Ensure Xray user UI public proxy ACME directory exists
+  ansible.builtin.file:
+    path: "{{ xray_user_ui_public_acme_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: xray_user_ui_public_enabled | bool
+
+- name: Check Xray user UI public proxy certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ xray_user_ui_public_domain }}/fullchain.pem"
+  register: xray_user_ui_public_certificate
+  when: xray_user_ui_public_enabled | bool
+
+- name: Check Xray user UI public proxy Basic Auth credentials
+  ansible.builtin.command:
+    cmd: >-
+      htpasswd -vb {{ xray_user_ui_public_htpasswd_path }}
+      {{ xray_user_ui_public_basic_auth_user }}
+      {{ xray_user_ui_basic_auth_password }}
+  register: xray_user_ui_public_htpasswd_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when:
+    - xray_user_ui_public_enabled | bool
+    - xray_user_ui_public_basic_auth_enabled | bool
+    - not ansible_check_mode
+
+- name: Write Xray user UI public proxy Basic Auth credentials
+  ansible.builtin.command:
+    cmd: >-
+      htpasswd -Bbc {{ xray_user_ui_public_htpasswd_path }}
+      {{ xray_user_ui_public_basic_auth_user }}
+      {{ xray_user_ui_basic_auth_password }}
+  no_log: true
+  notify: Reload nginx
+  when:
+    - xray_user_ui_public_enabled | bool
+    - xray_user_ui_public_basic_auth_enabled | bool
+    - not ansible_check_mode
+    - xray_user_ui_public_htpasswd_check.rc | default(1) != 0
+
+- name: Write Xray user UI public proxy nginx site
+  ansible.builtin.template:
+    src: xray-user-ui-nginx.conf.j2
+    dest: "{{ xray_user_ui_public_nginx_site_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  vars:
+    xray_user_ui_public_certificate_exists: "{{ xray_user_ui_public_certificate.stat.exists | default(false) }}"
+  when: xray_user_ui_public_enabled | bool
+
+- name: Enable Xray user UI public proxy nginx site
+  ansible.builtin.file:
+    src: "{{ xray_user_ui_public_nginx_site_path }}"
+    dest: "{{ xray_user_ui_public_nginx_site_link }}"
+    state: link
+    force: true
+  notify: Reload nginx
+  when: xray_user_ui_public_enabled | bool
+
+- name: Test Xray user UI public proxy nginx config
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+  when:
+    - xray_user_ui_public_enabled | bool
+    - not ansible_check_mode
+
+- name: Enable nginx for Xray user UI public proxy
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: true
+    state: started
+  when:
+    - xray_user_ui_public_enabled | bool
+    - not ansible_check_mode
+
+- name: Reload nginx before Xray user UI public proxy ACME challenge
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  when:
+    - xray_user_ui_public_enabled | bool
+    - xray_user_ui_public_tls_enabled | bool
+    - not xray_user_ui_public_certificate.stat.exists | default(false)
+    - not ansible_check_mode
+
+- name: Obtain Xray user UI public proxy certificate
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly --webroot
+      --webroot-path {{ xray_user_ui_public_acme_root }}
+      --domain {{ xray_user_ui_public_domain }}
+      --email {{ xray_user_ui_public_letsencrypt_email }}
+      --agree-tos
+      --non-interactive
+      --keep-until-expiring
+  register: xray_user_ui_public_certbot
+  changed_when: "'Certificate not yet due for renewal' not in xray_user_ui_public_certbot.stdout"
+  when:
+    - xray_user_ui_public_enabled | bool
+    - xray_user_ui_public_tls_enabled | bool
+    - not xray_user_ui_public_certificate.stat.exists | default(false)
+    - not ansible_check_mode
+
+- name: Re-check Xray user UI public proxy certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ xray_user_ui_public_domain }}/fullchain.pem"
+  register: xray_user_ui_public_certificate
+  when:
+    - xray_user_ui_public_enabled | bool
+    - xray_user_ui_public_tls_enabled | bool
+
+- name: Re-render Xray user UI public proxy nginx site with TLS
+  ansible.builtin.template:
+    src: xray-user-ui-nginx.conf.j2
+    dest: "{{ xray_user_ui_public_nginx_site_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  vars:
+    xray_user_ui_public_certificate_exists: "{{ xray_user_ui_public_certificate.stat.exists | default(false) }}"
+  when:
+    - xray_user_ui_public_enabled | bool
+    - xray_user_ui_public_tls_enabled | bool
+    - xray_user_ui_public_certificate.stat.exists | default(false)
+
+- name: Test Xray user UI public proxy nginx TLS config
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+  when:
+    - xray_user_ui_public_enabled | bool
+    - xray_user_ui_public_tls_enabled | bool
+    - xray_user_ui_public_certificate.stat.exists | default(false)
+    - not ansible_check_mode

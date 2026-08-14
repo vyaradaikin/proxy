@@ -57,6 +57,11 @@ xray_extra_direct_domains: []
 xray_extra_direct_ips: []
 xray_user_ui_enabled: false
 xray_user_ui_basic_auth_user: admin
+xray_user_ui_public_enabled: false
+xray_user_ui_public_domain: xray.example.com
+xray_user_ui_public_letsencrypt_email: admin@example.com
+xray_user_ui_public_basic_auth_enabled: true
+xray_user_ui_public_basic_auth_user: "{{ xray_user_ui_basic_auth_user }}"
 xray_user_backup_enabled: false
 xray_user_backup_root: /backup/xray-users
 xray_user_backup_interval: daily

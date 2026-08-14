@@ -1,0 +1,8 @@
+---
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  when:
+    - xray_user_ui_public_enabled | bool
+    - not ansible_check_mode
